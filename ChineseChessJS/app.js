@@ -648,61 +648,7 @@ class Xiangqi3DApp {
     waistRing.position.y = -2.55;
     this.parkGroup.add(pillarUpper, pillarWaist, pillarLower, waistRing);
 
-    // 案头三足青瓷香炉与袅袅青烟建模
-    const censerGroup = new THREE.Group();
-    censerGroup.position.set(-6.35, -0.23, -4.65);
-    const celadonMat = new THREE.MeshStandardMaterial({ color: 0x7eb8a2, roughness: 0.20, metalness: 0.16 });
-    const censerBody = new THREE.Mesh(new THREE.SphereGeometry(0.44, 24, 18), celadonMat);
-    censerBody.scale.set(1, 0.70, 1);
-    censerBody.position.y = 0.30;
-    const censerNeck = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.38, 0.14, 20), celadonMat);
-    censerNeck.position.y = 0.56;
-    const censerRim = new THREE.Mesh(new THREE.TorusGeometry(0.35, 0.045, 10, 24), bronzeAccentMat);
-    censerRim.rotation.x = Math.PI / 2;
-    censerRim.position.y = 0.62;
-    for (let l = 0; l < 3; l++) {
-      const la = (l * Math.PI * 2) / 3;
-      const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.04, 0.28, 10), bronzeAccentMat);
-      leg.position.set(Math.cos(la) * 0.26, 0.12, Math.sin(la) * 0.26);
-      censerGroup.add(leg);
-    }
     this.incenseSmokeRings = [];
-    for (let s = 0; s < 5; s++) {
-      const smokeRing = new THREE.Mesh(
-        new THREE.TorusGeometry(0.10 + s * 0.04, 0.022, 8, 20),
-        new THREE.MeshBasicMaterial({ color: 0xf1f5f9, transparent: true, opacity: 0.38 - s * 0.06, depthWrite: false })
-      );
-      smokeRing.rotation.x = Math.PI / 2;
-      smokeRing.position.y = 0.75 + s * 0.26;
-      censerGroup.add(smokeRing);
-      this.incenseSmokeRings.push({ mesh: smokeRing, baseOffset: s * 0.26, phase: s * 1.1 });
-    }
-    censerGroup.add(censerBody, censerNeck, censerRim);
-    this.parkGroup.add(censerGroup);
-
-    // 案头汝窑青瓷茶壶与对弈双茶盏建模
-    const teaGroup = new THREE.Group();
-    teaGroup.position.set(6.25, -0.23, 4.45);
-    const teapotBody = new THREE.Mesh(new THREE.SphereGeometry(0.36, 20, 16), celadonMat);
-    teapotBody.scale.set(1, 0.78, 1);
-    teapotBody.position.y = 0.26;
-    const teapotLid = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.22, 0.08, 16), celadonMat);
-    teapotLid.position.y = 0.52;
-    const lidFinial = new THREE.Mesh(new THREE.SphereGeometry(0.06, 10, 10), bronzeAccentMat);
-    lidFinial.position.y = 0.58;
-    const spout = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.08, 0.32, 10), celadonMat);
-    spout.position.set(-0.36, 0.32, 0);
-    spout.rotation.z = 0.85;
-    const handle = new THREE.Mesh(new THREE.TorusGeometry(0.18, 0.035, 8, 16, Math.PI), celadonMat);
-    handle.position.set(0.30, 0.30, 0);
-    handle.rotation.z = -Math.PI / 2;
-    teaGroup.add(teapotBody, teapotLid, lidFinial, spout, handle);
-    [[-0.58, 0.48], [0.46, -0.52]].forEach(([cx, cz]) => {
-      const cup = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.10, 0.16, 16), celadonMat);
-      cup.position.set(cx, 0.08, cz);
-      teaGroup.add(cup);
-    });
-    this.parkGroup.add(teaGroup);
 
     // 四方鼓形雕花石凳
     const stoolPositions = [
@@ -906,17 +852,6 @@ class Xiangqi3DApp {
       this.trees.push({ group: swayGroup, phase: idx * 1.3 });
     });
 
-    this.dappledCanopy = new THREE.Group();
-    const canopyGeo = new THREE.DodecahedronGeometry(1.6, 0);
-    const highBranchMat = new THREE.MeshLambertMaterial({ color: 0x4c8559 });
-    for (let i = 0; i < 5; i++) {
-      const puff = new THREE.Mesh(canopyGeo, highBranchMat);
-      puff.position.set(7.5 + i * 1.1, 10.5 + (i % 2) * 0.8, 6.5 - i * 0.9);
-      puff.scale.set(1.2, 0.4, 1.2);
-      puff.castShadow = true;
-      this.dappledCanopy.add(puff);
-    }
-    this.scene.add(this.dappledCanopy);
 
     this.breezeParticles = [];
     const petalGeo = new THREE.PlaneGeometry(0.18, 0.12);
@@ -935,7 +870,7 @@ class Xiangqi3DApp {
         (Math.random() - 0.5) * 26
       );
       p.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
-      this.scene.add(p);
+      this.parkGroup.add(p);
       this.breezeParticles.push({
         mesh: p,
         speedY: 0.4 + Math.random() * 0.5,
@@ -1029,15 +964,6 @@ class Xiangqi3DApp {
       this.battlefieldGroup.add(rivet);
     }
 
-    // 点将台案面虎符令箭架与青铜酒爵建模
-    const tallyGroup = new THREE.Group();
-    tallyGroup.position.set(-6.35, -0.22, 4.55);
-    const tallyStand = new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.14, 0.45), gildedBronzeMat);
-    tallyStand.position.y = 0.07;
-    const tigerTally = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.24, 0.22), gildedBronzeMat);
-    tigerTally.position.y = 0.22;
-    tallyGroup.add(tallyStand, tigerTally);
-    this.battlefieldGroup.add(tallyGroup);
 
     const drumPedestal = new THREE.Mesh(new THREE.CylinderGeometry(2.68, 3.28, 3.5, 24), crimsonLacquerMat);
     drumPedestal.position.y = -2.55;
@@ -1315,7 +1241,7 @@ class Xiangqi3DApp {
         (Math.random() - 0.5) * 26
       );
       sp.visible = this.currentSceneId === 'ancient_battlefield';
-      this.scene.add(sp);
+      this.battlefieldGroup.add(sp);
       this.battlefieldEmbers.push({
         sprite: sp,
         baseScale: s,
@@ -1475,62 +1401,7 @@ class Xiangqi3DApp {
     this.studyGroup.add(tableSlab, goldRim, jadeInlayRim, pedestal, pedestalGoldBand);
 
     // 仙鹤博山金香炉与袅袅动态青烟环
-    const craneCenser = new THREE.Group();
-    craneCenser.position.set(-6.35, -0.22, -4.55);
-    const craneBase = new THREE.Mesh(new THREE.CylinderGeometry(0.38, 0.46, 0.22, 16), gildedMat);
-    craneBase.position.y = 0.11;
-    const craneBowl = new THREE.Mesh(new THREE.SphereGeometry(0.40, 18, 14), gildedMat);
-    craneBowl.scale.set(1, 0.70, 1);
-    craneBowl.position.y = 0.38;
-    const cranePeak = new THREE.Mesh(new THREE.ConeGeometry(0.32, 0.42, 8), gildedMat);
-    cranePeak.position.y = 0.72;
-    craneCenser.add(craneBase, craneBowl, cranePeak);
-    this.studyGroup.add(craneCenser);
-
     this.studySmokeRings = [];
-    for (let s = 0; s < 5; s++) {
-      const sRing = new THREE.Mesh(
-        new THREE.TorusGeometry(0.14, 0.022, 8, 24),
-        new THREE.MeshBasicMaterial({
-          color: 0xbae6fd,
-          transparent: true,
-          opacity: 0.32,
-          depthWrite: false
-        })
-      );
-      sRing.rotation.x = Math.PI / 2;
-      sRing.position.set(-6.35, 0.65 + s * 0.25, -4.55);
-      this.studyGroup.add(sRing);
-      this.studySmokeRings.push({ mesh: sRing, baseOffset: s * 0.28, phase: s * 1.3 });
-    }
-
-    // 白玉酒壶与双玉爵对杯
-    const jadeWineGroup = new THREE.Group();
-    jadeWineGroup.position.set(6.25, -0.22, -4.45);
-    const potBody = new THREE.Mesh(new THREE.SphereGeometry(0.32, 16, 14), whiteJadeMat);
-    potBody.scale.set(1, 1.25, 1);
-    potBody.position.y = 0.36;
-    const potNeck = new THREE.Mesh(new THREE.CylinderGeometry(0.10, 0.15, 0.28, 12), whiteJadeMat);
-    potNeck.position.y = 0.72;
-    const potLid = new THREE.Mesh(new THREE.SphereGeometry(0.11, 10, 10), gildedMat);
-    potLid.position.y = 0.88;
-    jadeWineGroup.add(potBody, potNeck, potLid);
-    [-0.52, 0.52].forEach(cx => {
-      const cup = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.08, 0.22, 12), celadonJadeMat);
-      cup.position.set(cx, 0.11, 0.32);
-      jadeWineGroup.add(cup);
-    });
-    this.studyGroup.add(jadeWineGroup);
-
-    // 传国白玉金纽玺
-    const imperialSeal = new THREE.Group();
-    imperialSeal.position.set(6.25, -0.22, 4.45);
-    const sealBlock = new THREE.Mesh(new THREE.BoxGeometry(0.58, 0.36, 0.58), whiteJadeMat);
-    sealBlock.position.y = 0.18;
-    const sealKnob = new THREE.Mesh(new THREE.TorusGeometry(0.16, 0.06, 10, 16, Math.PI), gildedMat);
-    sealKnob.position.y = 0.36;
-    imperialSeal.add(sealBlock, sealKnob);
-    this.studyGroup.add(imperialSeal);
 
     // 4. 四方完整四足落地紫檀官帽太师椅（含四条椅腿、脚踏横枨、锦垫、S型靠背板、扶手与金箍官帽搭脑）
     const chairCoords = [
@@ -3389,8 +3260,6 @@ class Xiangqi3DApp {
           sr.mesh.material.opacity = Math.max(0, (1 - cycle / 1.4) * 0.38);
         });
       }
-      this.dappledCanopy.position.x = Math.sin(elapsed * 1.1) * 0.35;
-      this.dappledCanopy.position.z = Math.cos(elapsed * 0.9) * 0.35;
 
       this.breezeParticles.forEach(bp => {
         bp.mesh.position.y -= bp.speedY * dt;
@@ -3953,7 +3822,6 @@ class Xiangqi3DApp {
     this.sfx.playSelect();
 
     if (this.parkGroup) this.parkGroup.visible = isPark;
-    if (this.dappledCanopy) this.dappledCanopy.visible = isPark;
     if (this.breezeParticles) {
       this.breezeParticles.forEach(bp => { bp.mesh.visible = isPark; });
     }
