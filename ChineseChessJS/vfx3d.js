@@ -537,9 +537,15 @@ Object.assign(Xiangqi3DApp.prototype, {
       m.position.copy(ps.pos);
       m.rotation.copy(ps.rot);
       m.scale.copy(ps.scale);
+      m.renderOrder = 0;
+      m.children.forEach((ch) => { ch.renderOrder = 0; });
       if (m.userData?.bodyMat) {
         m.userData.bodyMat.emissive.setHex(0x000000);
         m.userData.bodyMat.emissiveIntensity = 0.0;
+      }
+      if (m.userData?.topDisc?.material?.emissive) {
+        m.userData.topDisc.material.emissive.setHex(0x000000);
+        m.userData.topDisc.material.emissiveIntensity = 0.0;
       }
     }
     if (snap.clonedPieceMaterials) {
@@ -560,6 +566,7 @@ Object.assign(Xiangqi3DApp.prototype, {
       return;
     }
     mesh.visible = true;
+    mesh.renderOrder = 25;
     const sx = Array.isArray(scale) ? scale[0] : scale;
     const sy = Array.isArray(scale) ? scale[1] : scale;
     const sz = Array.isArray(scale) ? scale[2] : scale;
@@ -571,21 +578,28 @@ Object.assign(Xiangqi3DApp.prototype, {
     const localMid = new THREE.Vector3(0, halfH, 0).applyEuler(mesh.rotation);
     mesh.position.set(x - localMid.x, y + halfH - localMid.y, z - localMid.z);
 
+    const wantTrans = clampedAlpha < 0.995;
     mesh.children.forEach((ch) => {
+      ch.renderOrder = 25;
       const mat = ch.material;
       if (!mat) return;
-      if (clampedAlpha < 0.995) {
-        mat.transparent = true;
-        mat.opacity = clampedAlpha;
-      } else {
-        mat.transparent = false;
-        mat.opacity = 1.0;
+      if (mat.transparent !== wantTrans) {
+        mat.transparent = wantTrans;
+        mat.needsUpdate = true;
       }
+      mat.opacity = wantTrans ? clampedAlpha : 1.0;
+      mat.depthWrite = clampedAlpha > 0.25;
+      mat.depthTest = true;
     });
     const bodyChild = mesh.children[0];
     if (bodyChild?.material?.emissive) {
       bodyChild.material.emissive.setHex(glowIntensity > 0.01 ? glowHex : 0x000000);
       bodyChild.material.emissiveIntensity = glowIntensity;
+    }
+    const topDiscChild = mesh.userData?.topDisc || mesh.children[3];
+    if (topDiscChild?.material?.emissive) {
+      topDiscChild.material.emissive.setHex(glowIntensity > 0.01 ? glowHex : 0x000000);
+      topDiscChild.material.emissiveIntensity = glowIntensity * 0.36;
     }
   },
 
@@ -1208,33 +1222,38 @@ Object.assign(Xiangqi3DApp.prototype, {
       headGroup,
       tailPivot,
       legs: [flLeg, frLeg, blLeg, brLeg],
-      animateGallop(time, rearUp = 0) {
+      animateGallop(time, rearUp = 0, strideAmp = 1.0) {
         const clampedRear = Math.max(-0.35, Math.min(1.15, rearUp));
-        bodyPivot.rotation.set(-clampedRear * 0.58, 0, 0);
-        bodyPivot.position.set(0, Math.max(0, clampedRear) * 0.26, 0);
-        neckPivot.rotation.x = Math.sin(time * 14) * 0.14 + clampedRear * 0.30;
-        headGroup.rotation.x = Math.cos(time * 14) * 0.14 - clampedRear * 0.12;
-        tailPivot.rotation.x = Math.sin(time * 16) * 0.28 + clampedRear * 0.36;
-        tailPivot.rotation.y = Math.cos(time * 12) * 0.18;
+        const gallopPitch = Math.sin(time * 15) * 0.22 * strideAmp;
+        const gallopLift = Math.abs(Math.sin(time * 15)) * 0.16 * strideAmp;
+        bodyPivot.rotation.set(-clampedRear * 0.58 + gallopPitch, 0, Math.cos(time * 7.5) * 0.06 * strideAmp);
+        bodyPivot.position.set(0, Math.max(0, clampedRear) * 0.26 + gallopLift, 0);
+        neckPivot.rotation.x = Math.sin(time * 15 - 0.4) * 0.24 * strideAmp + clampedRear * 0.30;
+        headGroup.rotation.x = Math.cos(time * 15) * 0.22 * strideAmp - clampedRear * 0.12;
+        tailPivot.rotation.x = Math.sin(time * 17) * 0.38 * strideAmp + clampedRear * 0.36;
+        tailPivot.rotation.y = Math.cos(time * 13) * 0.26 * strideAmp;
         maneLocks.forEach((mLock, idx) => {
-          mLock.rotation.z = Math.sin(time * 18 + idx * 0.5) * 0.15;
+          mLock.rotation.z = Math.sin(time * 20 + idx * 0.5) * 0.24 * strideAmp;
         });
         ribbons.forEach((rib, idx) => {
-          rib.rotation.x = Math.sin(time * 16 + idx) * 0.22;
+          rib.rotation.x = Math.sin(time * 18 + idx) * 0.32 * strideAmp;
         });
 
-        flLeg.hipJoint.rotation.x = Math.sin(time * 15) * 0.68 - clampedRear * 0.56;
-        flLeg.kneeJoint.rotation.x = Math.max(0, Math.cos(time * 15) * 0.68) + clampedRear * 0.78;
-        flLeg.fetlockJoint.rotation.x = Math.sin(time * 15) * 0.25;
+        flLeg.hipJoint.rotation.x = Math.sin(time * 15) * 0.96 * strideAmp - clampedRear * 0.56;
+        flLeg.kneeJoint.rotation.x = Math.max(0, Math.cos(time * 15) * 1.05 * strideAmp) + clampedRear * 0.78;
+        flLeg.fetlockJoint.rotation.x = Math.sin(time * 15) * 0.38 * strideAmp;
 
-        frLeg.hipJoint.rotation.x = Math.sin(time * 15 + Math.PI * 0.65) * 0.68 - clampedRear * 0.44;
-        frLeg.kneeJoint.rotation.x = Math.max(0, Math.cos(time * 15 + Math.PI * 0.65) * 0.68) + clampedRear * 0.68;
-        frLeg.fetlockJoint.rotation.x = Math.cos(time * 15) * 0.25;
+        frLeg.hipJoint.rotation.x = Math.sin(time * 15 + Math.PI * 0.55) * 0.96 * strideAmp - clampedRear * 0.44;
+        frLeg.kneeJoint.rotation.x = Math.max(0, Math.cos(time * 15 + Math.PI * 0.55) * 1.05 * strideAmp) + clampedRear * 0.68;
+        frLeg.fetlockJoint.rotation.x = Math.cos(time * 15) * 0.38 * strideAmp;
 
-        blLeg.hipJoint.rotation.x = Math.sin(time * 15 + Math.PI) * 0.56 + clampedRear * 0.42;
-        blLeg.kneeJoint.rotation.x = -Math.max(0, Math.sin(time * 15) * 0.48);
-        brLeg.hipJoint.rotation.x = Math.sin(time * 15 + Math.PI * 1.65) * 0.56 + clampedRear * 0.42;
-        brLeg.kneeJoint.rotation.x = -Math.max(0, Math.sin(time * 15 + 0.6) * 0.48);
+        blLeg.hipJoint.rotation.x = Math.sin(time * 15 + Math.PI) * 0.88 * strideAmp + clampedRear * 0.42;
+        blLeg.kneeJoint.rotation.x = -Math.max(0, Math.sin(time * 15) * 0.82 * strideAmp);
+        blLeg.fetlockJoint.rotation.x = -Math.sin(time * 15) * 0.32 * strideAmp;
+
+        brLeg.hipJoint.rotation.x = Math.sin(time * 15 + Math.PI * 1.55) * 0.88 * strideAmp + clampedRear * 0.42;
+        brLeg.kneeJoint.rotation.x = -Math.max(0, Math.sin(time * 15 + 0.55) * 0.82 * strideAmp);
+        brLeg.fetlockJoint.rotation.x = -Math.cos(time * 15) * 0.32 * strideAmp;
       }
     };
     return horse;
@@ -1245,239 +1264,474 @@ Object.assign(Xiangqi3DApp.prototype, {
     const bodyPivot = new THREE.Group();
     tiger.add(bodyPivot);
 
-    const chest = new THREE.Mesh(new THREE.SphereGeometry(0.40, 20, 18), goldMat);
-    chest.scale.set(1.08, 1.12, 1.24);
-    chest.position.set(0, 0.78, 0.48);
+    // 1. 双段柔性脊柱：前胸肩胛总成 (frontTorsoGroup) + 柔性腰椎关节 (spineWaistJoint) + 后腰臀胯总成 (rearPelvisGroup)
+    const frontTorsoGroup = new THREE.Group();
+    frontTorsoGroup.position.set(0, 0.80, 0.22);
+    bodyPivot.add(frontTorsoGroup);
 
-    const torso = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.31, 1.24, 20), goldMat);
-    torso.rotation.x = Math.PI / 2;
-    torso.position.set(0, 0.78, -0.02);
+    // 宽厚饱满的虎胸、肩胛背肌与肋骨腔
+    const chestCore = new THREE.Mesh(new THREE.SphereGeometry(0.42, 28, 24), goldMat);
+    chestCore.scale.set(1.14, 1.18, 1.32);
+    chestCore.position.set(0, 0.02, 0.24);
+    frontTorsoGroup.add(chestCore);
 
-    const pelvis = new THREE.Mesh(new THREE.SphereGeometry(0.34, 18, 16), goldMat);
-    pelvis.scale.set(1.02, 1.06, 1.18);
-    pelvis.position.set(0, 0.78, -0.56);
+    // 胸前白玉/象牙色胸毛腹甲
+    const underbellyFront = new THREE.Mesh(new THREE.SphereGeometry(0.35, 22, 18), fangMat);
+    underbellyFront.scale.set(0.96, 0.85, 1.28);
+    underbellyFront.position.set(0, -0.14, 0.22);
+    frontTorsoGroup.add(underbellyFront);
 
-    // 虎背金甲背脊与护肩战甲
-    for (let s = 0; s < 7; s++) {
-      const spine = new THREE.Mesh(new THREE.ConeGeometry(0.072, 0.22, 6), glowMat);
-      spine.position.set(0, 1.14 - s * 0.015, 0.52 - s * 0.18);
-      spine.rotation.x = -0.38;
-      bodyPivot.add(spine);
-    }
+    // 左右隆起的肩胛三角肌 (Scapula Deltoids) 与鎏金兽面护肩甲
+    [-1, 1].forEach((side) => {
+      const scapulaMuscle = new THREE.Mesh(new THREE.SphereGeometry(0.28, 22, 18), goldMat);
+      scapulaMuscle.scale.set(0.88, 1.22, 1.16);
+      scapulaMuscle.position.set(side * 0.30, 0.08, 0.26);
+      frontTorsoGroup.add(scapulaMuscle);
 
-    [-1, 1].forEach(side => {
       const shoulderArmor = new THREE.Mesh(
-        new THREE.SphereGeometry(0.24, 14, 12, 0, Math.PI * 2, 0, Math.PI * 0.52),
+        new THREE.SphereGeometry(0.26, 20, 16, 0, Math.PI * 2, 0, Math.PI * 0.55),
         crimsonMat
       );
-      shoulderArmor.position.set(side * 0.34, 0.88, 0.44);
-      shoulderArmor.rotation.z = -side * 0.62;
-      const armorSpike = new THREE.Mesh(new THREE.ConeGeometry(0.055, 0.22, 6), glowMat);
-      armorSpike.position.set(side * 0.48, 0.94, 0.44);
-      armorSpike.rotation.z = -side * 1.1;
-      bodyPivot.add(shoulderArmor, armorSpike);
+      shoulderArmor.position.set(side * 0.36, 0.14, 0.26);
+      shoulderArmor.rotation.z = -side * 0.58;
+      const armorTrim = new THREE.Mesh(new THREE.TorusGeometry(0.24, 0.028, 10, 24), glowMat);
+      armorTrim.position.set(side * 0.36, 0.08, 0.26);
+      armorTrim.rotation.y = side * 0.35;
+      armorTrim.rotation.x = Math.PI * 0.42;
+      const armorSpike = new THREE.Mesh(new THREE.ConeGeometry(0.058, 0.24, 8), glowMat);
+      armorSpike.position.set(side * 0.50, 0.18, 0.26);
+      armorSpike.rotation.z = -side * 1.12;
+      frontTorsoGroup.add(shoulderArmor, armorTrim, armorSpike);
     });
 
-    [-0.50, -0.36, -0.22, -0.08, 0.06, 0.20, 0.34, 0.48].forEach((bz, idx) => {
-      const r = bz > 0.2 ? 0.38 : (bz < -0.25 ? 0.33 : 0.35);
+    const midRibcage = new THREE.Mesh(new THREE.CylinderGeometry(0.39, 0.34, 0.68, 26), goldMat);
+    midRibcage.rotation.x = Math.PI / 2;
+    midRibcage.position.set(0, 0.0, -0.16);
+    frontTorsoGroup.add(midRibcage);
+
+    // 前躯环绕式立体黑虎斑纹
+    [-0.36, -0.20, -0.04, 0.12, 0.28, 0.42].forEach((bz, idx) => {
+      const r = bz > 0.15 ? 0.41 : 0.37;
       const stripe = new THREE.Mesh(
-        new THREE.TorusGeometry(r, 0.034, 8, 24, Math.PI * 1.38),
+        new THREE.TorusGeometry(r, 0.032, 10, 28, Math.PI * 1.42),
         stripeMat
       );
-      stripe.rotation.z = Math.PI * 0.32 + (idx % 2 === 0 ? 0.08 : -0.08);
-      stripe.position.set(0, 0.79, bz);
-      bodyPivot.add(stripe);
+      stripe.rotation.z = Math.PI * 0.29 + (idx % 2 === 0 ? 0.09 : -0.09);
+      stripe.rotation.x = (idx % 2 === 0 ? 0.14 : -0.14);
+      stripe.position.set(0, 0.02, bz);
+      frontTorsoGroup.add(stripe);
     });
-    bodyPivot.add(chest, torso, pelvis);
 
+    // 柔性腰椎枢纽与后腰臀胯总成 (spineWaistJoint -> rearPelvisGroup)
+    const spineWaistJoint = new THREE.Group();
+    spineWaistJoint.position.set(0, 0.0, -0.44);
+    frontTorsoGroup.add(spineWaistJoint);
+
+    const rearPelvisGroup = new THREE.Group();
+    spineWaistJoint.add(rearPelvisGroup);
+
+    const lumbarLoins = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.36, 0.56, 24), goldMat);
+    lumbarLoins.rotation.x = Math.PI / 2;
+    lumbarLoins.position.set(0, -0.01, -0.22);
+    const pelvisCroup = new THREE.Mesh(new THREE.SphereGeometry(0.37, 24, 20), goldMat);
+    pelvisCroup.scale.set(1.06, 1.12, 1.24);
+    pelvisCroup.position.set(0, 0.0, -0.50);
+    rearPelvisGroup.add(lumbarLoins, pelvisCroup);
+
+    [-0.12, -0.28, -0.44, -0.58].forEach((bz, idx) => {
+      const stripe = new THREE.Mesh(
+        new THREE.TorusGeometry(0.35, 0.030, 10, 26, Math.PI * 1.38),
+        stripeMat
+      );
+      stripe.rotation.z = Math.PI * 0.31 + (idx % 2 === 0 ? -0.10 : 0.10);
+      stripe.position.set(0, 0.01, bz);
+      rearPelvisGroup.add(stripe);
+    });
+
+    // 虎背鎏金骨刺战甲脊线
+    for (let s = 0; s < 5; s++) {
+      const dorsalFin = new THREE.Mesh(new THREE.ConeGeometry(0.062, 0.20, 6), glowMat);
+      dorsalFin.position.set(0, 0.42 - s * 0.012, 0.30 - s * 0.16);
+      dorsalFin.rotation.x = -0.42;
+      frontTorsoGroup.add(dorsalFin);
+    }
+
+    // 2. 雄浑虎颈与高精雕猛虎头颅 (neckPivot -> headGroup)
     const neckPivot = new THREE.Group();
-    neckPivot.position.set(0, 0.88, 0.76);
-    bodyPivot.add(neckPivot);
+    neckPivot.position.set(0, 0.12, 0.54);
+    frontTorsoGroup.add(neckPivot);
 
-    const neckMane = new THREE.Mesh(new THREE.CylinderGeometry(0.38, 0.42, 0.34, 18), goldMat);
-    neckMane.rotation.x = Math.PI / 2 - 0.25;
-    neckMane.position.set(0, 0.04, 0.10);
-    neckPivot.add(neckMane);
+    const neckMuscle = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.40, 0.38, 24), goldMat);
+    neckMuscle.rotation.x = Math.PI / 2 - 0.28;
+    neckMuscle.position.set(0, 0.04, 0.12);
+    neckPivot.add(neckMuscle);
+
+    // 颈部一圈威武鬃毛领
+    for (let m = 0; m < 12; m++) {
+      const ma = (m / 12) * Math.PI * 2;
+      const ruffCone = new THREE.Mesh(
+        new THREE.ConeGeometry(0.085, 0.28, 6),
+        m % 2 === 0 ? goldMat : fangMat
+      );
+      ruffCone.position.set(Math.cos(ma) * 0.34, Math.sin(ma) * 0.32 + 0.04, 0.14);
+      ruffCone.rotation.z = ma - Math.PI / 2;
+      ruffCone.rotation.x = -0.35;
+      neckPivot.add(ruffCone);
+    }
 
     const headGroup = new THREE.Group();
-    headGroup.position.set(0, 0.10, 0.26);
+    headGroup.position.set(0, 0.10, 0.30);
     neckPivot.add(headGroup);
 
-    const cranium = new THREE.Mesh(new THREE.SphereGeometry(0.35, 20, 18), goldMat);
-    cranium.scale.set(1.16, 1.0, 1.06);
+    // 多曲面精雕虎颅骨、眉弓、颧骨与吻部
+    const cranium = new THREE.Mesh(new THREE.SphereGeometry(0.36, 28, 24), goldMat);
+    cranium.scale.set(1.18, 1.02, 1.10);
     headGroup.add(cranium);
 
-    [-1, 1].forEach(side => {
-      const cheek = new THREE.Mesh(new THREE.SphereGeometry(0.21, 14, 12), goldMat);
-      cheek.scale.set(1.15, 0.88, 0.85);
-      cheek.position.set(side * 0.22, -0.06, 0.12);
-      headGroup.add(cheek);
+    const snoutBridge = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.24, 0.34, 20), goldMat);
+    snoutBridge.rotation.x = Math.PI / 2 + 0.22;
+    snoutBridge.position.set(0, -0.01, 0.28);
+    headGroup.add(snoutBridge);
 
-      for (let t = 0; t < 4; t++) {
-        const tuft = new THREE.Mesh(new THREE.ConeGeometry(0.068, 0.24, 6), t % 2 === 0 ? goldMat : fangMat);
-        tuft.position.set(side * (0.34 + t * 0.02), 0.0 - t * 0.055, 0.02);
-        tuft.rotation.z = -side * (1.15 + t * 0.12);
+    // 饱满的双侧上唇胡须垫 (Muzzle Whisker Pads)
+    [-1, 1].forEach((side) => {
+      const muzzlePad = new THREE.Mesh(new THREE.SphereGeometry(0.145, 18, 16), fangMat);
+      muzzlePad.scale.set(0.95, 0.82, 1.18);
+      muzzlePad.position.set(side * 0.11, -0.07, 0.34);
+      headGroup.add(muzzlePad);
+
+      const cheekBone = new THREE.Mesh(new THREE.SphereGeometry(0.23, 20, 16), goldMat);
+      cheekBone.scale.set(1.18, 0.92, 0.90);
+      cheekBone.position.set(side * 0.23, -0.05, 0.10);
+      headGroup.add(cheekBone);
+
+      // 双颊黑纹与层次鬓毛
+      for (let c = 0; c < 3; c++) {
+        const cheekStripe = new THREE.Mesh(new THREE.TorusGeometry(0.18, 0.020, 8, 16, Math.PI * 0.65), stripeMat);
+        cheekStripe.position.set(side * 0.26, -0.02 - c * 0.05, 0.12);
+        cheekStripe.rotation.y = side * 1.1;
+        headGroup.add(cheekStripe);
+      }
+      for (let t = 0; t < 5; t++) {
+        const tuft = new THREE.Mesh(new THREE.ConeGeometry(0.072, 0.26, 8), t % 2 === 0 ? fangMat : goldMat);
+        tuft.position.set(side * (0.35 + t * 0.018), 0.04 - t * 0.05, 0.02);
+        tuft.rotation.z = -side * (1.12 + t * 0.11);
         headGroup.add(tuft);
       }
 
-      const earOuter = new THREE.Mesh(new THREE.CylinderGeometry(0.115, 0.115, 0.075, 14), goldMat);
-      earOuter.rotation.x = Math.PI / 2;
-      earOuter.rotation.z = -side * 0.35;
-      earOuter.position.set(side * 0.25, 0.28, -0.06);
-      const earInner = new THREE.Mesh(new THREE.CylinderGeometry(0.068, 0.068, 0.08, 12), crimsonMat);
-      earInner.rotation.x = Math.PI / 2;
-      earInner.rotation.z = -side * 0.35;
-      earInner.position.set(side * 0.25, 0.28, -0.05);
-      headGroup.add(earOuter, earInner);
+      // 圆润立体虎耳（黑背白斑 + 朱红内耳廓）
+      const earGroup = new THREE.Group();
+      earGroup.position.set(side * 0.26, 0.29, -0.06);
+      earGroup.rotation.z = -side * 0.34;
+      earGroup.rotation.x = 0.18;
+      const earShell = new THREE.Mesh(
+        new THREE.SphereGeometry(0.125, 16, 14, 0, Math.PI * 2, 0, Math.PI * 0.58),
+        stripeMat
+      );
+      earShell.rotation.x = -Math.PI * 0.38;
+      const earInner = new THREE.Mesh(new THREE.CircleGeometry(0.082, 14), crimsonMat);
+      earInner.position.set(0, 0.0, 0.045);
+      const earWhiteSpot = new THREE.Mesh(new THREE.CircleGeometry(0.055, 12), fangMat);
+      earWhiteSpot.rotation.y = Math.PI;
+      earWhiteSpot.position.set(0, 0.02, -0.065);
+      earGroup.add(earShell, earInner, earWhiteSpot);
+      headGroup.add(earGroup);
 
-      const brow = new THREE.Mesh(new THREE.BoxGeometry(0.17, 0.05, 0.085), stripeMat);
-      brow.position.set(side * 0.15, 0.14, 0.28);
-      brow.rotation.z = -side * 0.32;
-      const eye = new THREE.Mesh(new THREE.SphereGeometry(0.055, 12, 12), glowMat);
-      eye.position.set(side * 0.15, 0.07, 0.29);
-      const pupil = new THREE.Mesh(new THREE.SphereGeometry(0.026, 8, 8), stripeMat);
-      pupil.position.set(side * 0.15, 0.07, 0.33);
-      headGroup.add(brow, eye, pupil);
+      // 怒目眉骨与琥珀金发光虎目 + 竖瞳
+      const browRidge = new THREE.Mesh(new THREE.CylinderGeometry(0.038, 0.046, 0.19, 10), stripeMat);
+      browRidge.rotation.z = Math.PI / 2 - side * 0.34;
+      browRidge.position.set(side * 0.15, 0.14, 0.29);
+      const eyeSocket = new THREE.Mesh(new THREE.SphereGeometry(0.064, 14, 14), stripeMat);
+      eyeSocket.position.set(side * 0.15, 0.07, 0.28);
+      const eyeIris = new THREE.Mesh(new THREE.SphereGeometry(0.056, 14, 14), glowMat);
+      eyeIris.position.set(side * 0.15, 0.07, 0.30);
+      const slitPupil = new THREE.Mesh(new THREE.BoxGeometry(0.018, 0.072, 0.024), stripeMat);
+      slitPupil.position.set(side * 0.15, 0.07, 0.345);
+      headGroup.add(browRidge, eyeSocket, eyeIris, slitPupil);
 
-      for (let w = 0; w < 3; w++) {
-        const whisker = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.004, 0.36, 6), fangMat);
-        whisker.rotation.z = side * (Math.PI / 2 - 0.15 - w * 0.12);
-        whisker.rotation.y = side * 0.25;
-        whisker.position.set(side * 0.28, -0.06 - w * 0.03, 0.30);
+      // 4 根修长刚劲的弧形虎须
+      for (let w = 0; w < 4; w++) {
+        const wCurve = new THREE.QuadraticBezierCurve3(
+          new THREE.Vector3(side * 0.18, -0.05 - w * 0.022, 0.38),
+          new THREE.Vector3(side * 0.36, -0.06 - w * 0.030, 0.34),
+          new THREE.Vector3(side * 0.52, -0.10 - w * 0.042, 0.24)
+        );
+        const whisker = new THREE.Mesh(new THREE.TubeGeometry(wCurve, 10, 0.0055, 6, false), fangMat);
         headGroup.add(whisker);
       }
     });
 
-    const snoutBridge = new THREE.Mesh(new THREE.BoxGeometry(0.29, 0.18, 0.31), goldMat);
-    snoutBridge.position.set(0, -0.02, 0.26);
-    snoutBridge.rotation.x = 0.18;
-    const noseTip = new THREE.Mesh(new THREE.ConeGeometry(0.088, 0.085, 4), crimsonMat);
-    noseTip.rotation.x = Math.PI / 2;
-    noseTip.rotation.y = Math.PI / 4;
-    noseTip.position.set(0, 0.03, 0.42);
-    headGroup.add(snoutBridge, noseTip);
+    // 立体心形虎鼻头
+    const noseTip = new THREE.Mesh(new THREE.SphereGeometry(0.075, 14, 12), crimsonMat);
+    noseTip.scale.set(1.25, 0.85, 0.90);
+    noseTip.position.set(0, 0.02, 0.45);
+    headGroup.add(noseTip);
 
-    // 额头霸气“王”字金黑纹
-    [0.24, 0.19, 0.14].forEach((wy, idx) => {
-      const wLen = idx === 1 ? 0.19 : 0.25;
-      const hBar = new THREE.Mesh(new THREE.BoxGeometry(wLen, 0.028, 0.042), stripeMat);
-      hBar.position.set(0, wy, 0.29 + (2 - idx) * 0.015);
-      hBar.rotation.x = -0.35;
+    // 额头立体浮雕“王”字皇冠虎纹
+    [0.25, 0.195, 0.14].forEach((wy, idx) => {
+      const wLen = idx === 1 ? 0.19 : 0.26;
+      const hBar = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, wLen, 8), stripeMat);
+      hBar.rotation.z = Math.PI / 2;
+      hBar.position.set(0, wy, 0.30 + (2 - idx) * 0.016);
       headGroup.add(hBar);
     });
-    const vBar = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.135, 0.045), stripeMat);
-    vBar.position.set(0, 0.19, 0.305);
+    const vBar = new THREE.Mesh(new THREE.CylinderGeometry(0.020, 0.020, 0.14, 8), stripeMat);
+    vBar.position.set(0, 0.195, 0.315);
     vBar.rotation.x = -0.35;
     headGroup.add(vBar);
 
-    [-0.105, 0.105].forEach(fx => {
-      const upperFang = new THREE.Mesh(new THREE.ConeGeometry(0.040, 0.22, 8), fangMat);
-      upperFang.rotation.x = Math.PI - 0.12;
-      upperFang.position.set(fx, -0.15, 0.35);
-      headGroup.add(upperFang);
+    // 上颚弯曲剑齿獠牙 + 门齿列
+    [-0.105, 0.105].forEach((fx) => {
+      const fangCurve = new THREE.QuadraticBezierCurve3(
+        new THREE.Vector3(fx, -0.09, 0.38),
+        new THREE.Vector3(fx * 1.04, -0.19, 0.40),
+        new THREE.Vector3(fx * 0.96, -0.27, 0.36)
+      );
+      const upperFang = new THREE.Mesh(new THREE.TubeGeometry(fangCurve, 12, 0.028, 10, false), fangMat);
+      const fangTip = new THREE.Mesh(new THREE.ConeGeometry(0.028, 0.08, 10), fangMat);
+      fangTip.rotation.x = Math.PI + 0.18;
+      fangTip.position.set(fx * 0.96, -0.29, 0.35);
+      headGroup.add(upperFang, fangTip);
     });
+    for (let ic = -2; ic <= 2; ic++) {
+      const incisor = new THREE.Mesh(new THREE.ConeGeometry(0.014, 0.045, 6), fangMat);
+      incisor.rotation.x = Math.PI;
+      incisor.position.set(ic * 0.032, -0.11, 0.41);
+      headGroup.add(incisor);
+    }
 
+    // 可动下颚总成 (jawPivot) 含舌头、下犬齿与下颌骨
     const jawPivot = new THREE.Group();
     jawPivot.position.set(0, -0.12, 0.14);
-    const lowerJaw = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.105, 0.29), goldMat);
-    lowerJaw.position.set(0, -0.04, 0.12);
-    const mouthCavity = new THREE.Mesh(new THREE.BoxGeometry(0.21, 0.055, 0.25), crimsonMat);
-    mouthCavity.position.set(0, 0.01, 0.12);
-    [-0.085, 0.085].forEach(fx => {
-      const lowerFang = new THREE.Mesh(new THREE.ConeGeometry(0.032, 0.14, 8), fangMat);
-      lowerFang.position.set(fx, 0.05, 0.22);
+    const lowerJaw = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.15, 0.30, 16), goldMat);
+    lowerJaw.rotation.x = Math.PI / 2;
+    lowerJaw.scale.set(1.05, 1.0, 0.55);
+    lowerJaw.position.set(0, -0.04, 0.13);
+    const chinFur = new THREE.Mesh(new THREE.SphereGeometry(0.11, 14, 12), fangMat);
+    chinFur.scale.set(1.1, 0.65, 1.15);
+    chinFur.position.set(0, -0.07, 0.24);
+    const tongue = new THREE.Mesh(new THREE.SphereGeometry(0.085, 14, 10), crimsonMat);
+    tongue.scale.set(0.95, 0.38, 1.45);
+    tongue.position.set(0, 0.01, 0.15);
+    [-0.085, 0.085].forEach((fx) => {
+      const lowerFang = new THREE.Mesh(new THREE.ConeGeometry(0.026, 0.13, 10), fangMat);
+      lowerFang.position.set(fx, 0.04, 0.24);
       jawPivot.add(lowerFang);
     });
-    jawPivot.add(lowerJaw, mouthCavity);
-    jawPivot.rotation.x = 0.48;
+    jawPivot.add(lowerJaw, chinFur, tongue);
+    jawPivot.rotation.x = 0.42;
     headGroup.add(jawPivot);
 
-    const createTigerLeg = (lx, lz, isFront) => {
+    // 3. 四肢三关节解剖级虎腿（肩/髋 -> 肘/膝 -> 腕/踝 -> 梅花肉垫虎掌与弯钩利爪）
+    const createAnatomicalTigerLeg = (lx, lz, isFront, parentGrp) => {
       const shoulderJoint = new THREE.Group();
-      shoulderJoint.position.set(lx, 0.68, lz);
+      shoulderJoint.position.set(lx, -0.10, lz);
 
-      const upperLimb = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.11, 0.42, 14), goldMat);
-      upperLimb.position.y = -0.18;
-      shoulderJoint.add(upperLimb);
+      const upperMuscular = new THREE.Mesh(
+        new THREE.CylinderGeometry(isFront ? 0.155 : 0.175, 0.115, 0.42, 18),
+        goldMat
+      );
+      upperMuscular.position.y = -0.18;
+      const topJointSphere = new THREE.Mesh(new THREE.SphereGeometry(isFront ? 0.155 : 0.175, 16, 14), goldMat);
+      shoulderJoint.add(topJointSphere, upperMuscular);
 
-      [-0.10, -0.22].forEach(sy => {
-        const legStripe = new THREE.Mesh(new THREE.TorusGeometry(0.125, 0.022, 6, 16), stripeMat);
-        legStripe.rotation.x = Math.PI / 2;
+      [-0.08, -0.20, -0.30].forEach((sy, sIdx) => {
+        const legStripe = new THREE.Mesh(
+          new THREE.TorusGeometry(0.135 - sIdx * 0.01, 0.020, 8, 18, Math.PI * 1.35),
+          stripeMat
+        );
+        legStripe.rotation.x = Math.PI / 2 + 0.12;
+        legStripe.rotation.z = lx > 0 ? 0.2 : -0.2;
         legStripe.position.y = sy;
         shoulderJoint.add(legStripe);
       });
 
       const elbowJoint = new THREE.Group();
-      elbowJoint.position.y = -0.36;
-      const lowerLimb = new THREE.Mesh(new THREE.CylinderGeometry(0.105, 0.088, 0.36, 14), goldMat);
-      lowerLimb.position.y = -0.16;
-      elbowJoint.add(lowerLimb);
+      elbowJoint.position.y = -0.37;
+      const elbowCap = new THREE.Mesh(new THREE.SphereGeometry(0.112, 14, 12), goldMat);
+      const forearm = new THREE.Mesh(new THREE.CylinderGeometry(0.112, 0.092, 0.36, 18), goldMat);
+      forearm.position.y = -0.17;
+      elbowJoint.add(elbowCap, forearm);
 
-      const pawGroup = new THREE.Group();
-      pawGroup.position.set(0, -0.34, 0.05);
-      const pawPad = new THREE.Mesh(new THREE.SphereGeometry(0.12, 12, 10), goldMat);
-      pawPad.scale.set(1.18, 0.56, 1.32);
-      pawGroup.add(pawPad);
-
-      [-0.078, -0.026, 0.026, 0.078].forEach(cx => {
-        const claw = new THREE.Mesh(new THREE.ConeGeometry(0.024, 0.15, 6), fangMat);
-        claw.rotation.x = Math.PI * 0.42;
-        claw.position.set(cx, -0.01, 0.145);
-        pawGroup.add(claw);
+      [-0.10, -0.22].forEach((sy) => {
+        const lowerStripe = new THREE.Mesh(new THREE.TorusGeometry(0.098, 0.016, 6, 16, Math.PI * 1.3), stripeMat);
+        lowerStripe.rotation.x = Math.PI / 2;
+        lowerStripe.position.y = sy;
+        elbowJoint.add(lowerStripe);
       });
-      elbowJoint.add(pawGroup);
+
+      const wristJoint = new THREE.Group();
+      wristJoint.position.set(0, -0.34, 0.02);
+      const pawGroup = new THREE.Group();
+      wristJoint.add(pawGroup);
+
+      // 宽厚虎掌与四趾指节 + 弧形锋利虎爪
+      const mainPad = new THREE.Mesh(new THREE.SphereGeometry(0.125, 16, 14), goldMat);
+      mainPad.scale.set(1.24, 0.58, 1.36);
+      pawGroup.add(mainPad);
+
+      [-0.084, -0.028, 0.028, 0.084].forEach((cx, tIdx) => {
+        const zOff = (tIdx === 1 || tIdx === 2) ? 0.12 : 0.095;
+        const toeKnuckle = new THREE.Mesh(new THREE.SphereGeometry(0.048, 12, 10), fangMat);
+        toeKnuckle.scale.set(0.9, 0.78, 1.25);
+        toeKnuckle.position.set(cx, -0.01, zOff);
+        const claw = new THREE.Mesh(new THREE.ConeGeometry(0.024, 0.15, 8), fangMat);
+        claw.rotation.x = Math.PI * 0.40;
+        claw.position.set(cx, -0.02, zOff + 0.075);
+        pawGroup.add(toeKnuckle, claw);
+      });
+
+      elbowJoint.add(wristJoint);
       shoulderJoint.add(elbowJoint);
-      bodyPivot.add(shoulderJoint);
-      return { shoulderJoint, elbowJoint, pawGroup, isFront };
+      parentGrp.add(shoulderJoint);
+      return { shoulderJoint, elbowJoint, wristJoint, pawGroup, isFront };
     };
 
-    const flLeg = createTigerLeg(-0.26, 0.46, true);
-    const frLeg = createTigerLeg(0.26, 0.46, true);
-    const blLeg = createTigerLeg(-0.24, -0.50, false);
-    const brLeg = createTigerLeg(0.24, -0.50, false);
+    const flLeg = createAnatomicalTigerLeg(-0.27, 0.24, true, frontTorsoGroup);
+    const frLeg = createAnatomicalTigerLeg(0.27, 0.24, true, frontTorsoGroup);
+    const blLeg = createAnatomicalTigerLeg(-0.25, -0.44, false, rearPelvisGroup);
+    const brLeg = createAnatomicalTigerLeg(0.25, -0.44, false, rearPelvisGroup);
 
-    const tailPivot = new THREE.Group();
-    tailPivot.position.set(0, 0.84, -0.78);
-    const tailSeg1 = new THREE.Mesh(new THREE.CylinderGeometry(0.068, 0.054, 0.56, 12), goldMat);
-    tailSeg1.rotation.x = -Math.PI * 0.36;
-    tailSeg1.position.set(0, 0.12, -0.24);
-    const tailSeg2 = new THREE.Mesh(new THREE.CylinderGeometry(0.052, 0.038, 0.50, 12), stripeMat);
-    tailSeg2.rotation.x = -Math.PI * 0.18;
-    tailSeg2.position.set(0, 0.34, -0.56);
-    tailPivot.add(tailSeg1, tailSeg2);
-    bodyPivot.add(tailPivot);
+    // 4. 六段式柔性长鞭虎尾 (6-Segment Whip Tail)
+    const tailSegments = [];
+    let parentTail = rearPelvisGroup;
+    for (let t = 0; t < 6; t++) {
+      const segPivot = new THREE.Group();
+      if (t === 0) {
+        segPivot.position.set(0, 0.08, -0.68);
+      } else {
+        segPivot.position.set(0, 0, -0.22);
+      }
+      const rTop = 0.068 - t * 0.006;
+      const rBot = 0.062 - t * 0.006;
+      const segMesh = new THREE.Mesh(
+        new THREE.CylinderGeometry(rBot, rTop, 0.24, 14),
+        t % 2 === 0 ? goldMat : stripeMat
+      );
+      segMesh.rotation.x = Math.PI / 2;
+      segMesh.position.z = -0.11;
+      segPivot.add(segMesh);
+      parentTail.add(segPivot);
+      tailSegments.push(segPivot);
+      parentTail = segPivot;
+    }
 
     tiger.userData = {
       bodyPivot,
+      frontTorsoGroup,
+      spineWaistJoint,
+      rearPelvisGroup,
       neckPivot,
       headGroup,
       jawPivot,
-      tailPivot,
+      tailSegments,
       legs: [flLeg, frLeg, blLeg, brLeg],
-      animatePounce(time, pouncePhase = 0, swipePhase = 0) {
-        const pitch = Math.sin(pouncePhase * Math.PI) * -0.46 + (pouncePhase > 0.65 ? 0.24 : 0);
-        bodyPivot.rotation.set(pitch, 0, 0);
-        jawPivot.rotation.x = 0.38 + Math.abs(Math.sin(time * 12)) * 0.38;
-        neckPivot.rotation.x = -0.15 + Math.sin(time * 10) * 0.12;
-        tailPivot.rotation.y = Math.sin(time * 16) * 0.38;
-        tailPivot.rotation.x = Math.cos(time * 14) * 0.22;
+      /**
+       * 高生动度流体猛虎动作解算：
+       * mode: 'crouch' (伏地蓄力) | 'leap' (腾空舒展飞跃) | 'step_compress' (踩踏棋子缓冲借力) | 'pounce_swipe' (凌空扑杀挥爪)
+       */
+      animatePounce(time, phase = 0, swipePhase = 0, mode = 'leap') {
+        // 虎尾6关节流体S型波浪摆动
+        tailSegments.forEach((seg, idx) => {
+          const wave = Math.sin(time * 14 - idx * 0.55);
+          const liftWave = Math.cos(time * 11 - idx * 0.45);
+          seg.rotation.y = wave * (0.18 + idx * 0.04);
+          seg.rotation.x = (idx === 0 ? 0.35 : 0.08) + liftWave * 0.12;
+        });
 
-        flLeg.shoulderJoint.rotation.x = -0.75 - Math.sin(swipePhase * Math.PI) * 0.58;
-        flLeg.elbowJoint.rotation.x = 0.45 + Math.cos(swipePhase * Math.PI * 2) * 0.35;
-        frLeg.shoulderJoint.rotation.x = -0.65 - Math.cos(swipePhase * Math.PI) * 0.58;
-        frLeg.elbowJoint.rotation.x = 0.40 + Math.sin(swipePhase * Math.PI * 2) * 0.35;
+        if (mode === 'crouch') {
+          const c = Math.sin(phase * Math.PI * 0.5);
+          bodyPivot.position.y = -c * 0.26;
+          frontTorsoGroup.rotation.x = c * 0.22;
+          spineWaistJoint.rotation.x = -c * 0.34;
+          neckPivot.rotation.x = -c * 0.28;
+          headGroup.rotation.x = -c * 0.18;
+          jawPivot.rotation.x = 0.35 + c * 0.35;
 
-        blLeg.shoulderJoint.rotation.x = 0.58 + Math.sin(pouncePhase * Math.PI) * 0.35;
-        blLeg.elbowJoint.rotation.x = -0.35;
-        brLeg.shoulderJoint.rotation.x = 0.52 + Math.sin(pouncePhase * Math.PI) * 0.35;
-        brLeg.elbowJoint.rotation.x = -0.35;
+          flLeg.shoulderJoint.rotation.x = -0.58 * c;
+          flLeg.elbowJoint.rotation.x = 1.05 * c;
+          flLeg.wristJoint.rotation.x = -0.45 * c;
+          frLeg.shoulderJoint.rotation.x = -0.52 * c;
+          frLeg.elbowJoint.rotation.x = 0.98 * c;
+          frLeg.wristJoint.rotation.x = -0.42 * c;
+
+          blLeg.shoulderJoint.rotation.x = -0.65 * c;
+          blLeg.elbowJoint.rotation.x = 1.15 * c;
+          blLeg.wristJoint.rotation.x = -0.50 * c;
+          brLeg.shoulderJoint.rotation.x = -0.65 * c;
+          brLeg.elbowJoint.rotation.x = 1.15 * c;
+          brLeg.wristJoint.rotation.x = -0.50 * c;
+        } else if (mode === 'step_compress') {
+          // 踩中空中踏板棋子时的弹性缓冲屈膝与弓背蓄力
+          const comp = Math.sin(phase * Math.PI);
+          bodyPivot.position.y = -comp * 0.28;
+          frontTorsoGroup.rotation.x = comp * 0.28;
+          spineWaistJoint.rotation.x = -comp * 0.46;
+          neckPivot.rotation.x = -0.25 * comp;
+          jawPivot.rotation.x = 0.45 + comp * 0.32;
+
+          flLeg.shoulderJoint.rotation.x = -0.65 * comp;
+          flLeg.elbowJoint.rotation.x = 1.18 * comp;
+          flLeg.wristJoint.rotation.x = -0.52 * comp;
+          frLeg.shoulderJoint.rotation.x = -0.58 * comp;
+          frLeg.elbowJoint.rotation.x = 1.12 * comp;
+          frLeg.wristJoint.rotation.x = -0.48 * comp;
+
+          blLeg.shoulderJoint.rotation.x = -0.52 * comp;
+          blLeg.elbowJoint.rotation.x = 1.05 * comp;
+          brLeg.shoulderJoint.rotation.x = -0.52 * comp;
+          brLeg.elbowJoint.rotation.x = 1.05 * comp;
+        } else {
+          // 腾空飞跃与扑击挥爪：前半程猛烈舒展脊柱与前后肢，最高点弓腰蓄势，下落时双前爪张开交叉挥拍！
+          const arch = Math.cos(phase * Math.PI); // +1 起跳仰首舒展 -> -1 俯冲扑下
+          const stretch = Math.sin(phase * Math.PI);
+          bodyPivot.position.y = 0;
+          frontTorsoGroup.rotation.x = -arch * 0.42;
+          spineWaistJoint.rotation.x = stretch * 0.36 - (swipePhase > 0 ? 0.28 : 0);
+          neckPivot.rotation.x = arch * 0.25 + Math.sin(time * 12) * 0.08;
+          headGroup.rotation.x = arch * 0.15;
+          jawPivot.rotation.x = 0.42 + stretch * 0.42 + (swipePhase > 0 ? 0.25 : 0);
+
+          if (swipePhase > 0.01) {
+            // 扑向“将（帅）”时双前爪大张并凌空交叉挥击！
+            const sw = swipePhase * Math.PI * 2.2;
+            flLeg.shoulderJoint.rotation.x = -1.18 + Math.sin(sw) * 0.68;
+            flLeg.shoulderJoint.rotation.z = -0.32 + Math.cos(sw) * 0.36;
+            flLeg.elbowJoint.rotation.x = 0.35 + Math.abs(Math.sin(sw)) * 0.45;
+            flLeg.wristJoint.rotation.x = 0.32;
+
+            frLeg.shoulderJoint.rotation.x = -1.18 - Math.sin(sw) * 0.68;
+            frLeg.shoulderJoint.rotation.z = 0.32 - Math.cos(sw) * 0.36;
+            frLeg.elbowJoint.rotation.x = 0.35 + Math.abs(Math.cos(sw)) * 0.45;
+            frLeg.wristJoint.rotation.x = 0.32;
+          } else {
+            // 飞跃途中双前肢向前探爪，双后肢向后猛蹬伸直
+            flLeg.shoulderJoint.rotation.x = -0.95 * stretch - 0.25;
+            flLeg.shoulderJoint.rotation.z = -0.14 * stretch;
+            flLeg.elbowJoint.rotation.x = 0.28 + (1 - stretch) * 0.45;
+            flLeg.wristJoint.rotation.x = 0.22 * stretch;
+
+            frLeg.shoulderJoint.rotation.x = -0.82 * stretch - 0.30;
+            frLeg.shoulderJoint.rotation.z = 0.14 * stretch;
+            frLeg.elbowJoint.rotation.x = 0.32 + (1 - stretch) * 0.45;
+            frLeg.wristJoint.rotation.x = 0.22 * stretch;
+          }
+
+          blLeg.shoulderJoint.rotation.x = 0.88 * stretch + 0.18;
+          blLeg.elbowJoint.rotation.x = -0.55 * stretch;
+          blLeg.wristJoint.rotation.x = 0.35 * stretch;
+
+          brLeg.shoulderJoint.rotation.x = 0.82 * stretch + 0.22;
+          brLeg.elbowJoint.rotation.x = -0.55 * stretch;
+          brLeg.wristJoint.rotation.x = 0.35 * stretch;
+        }
       }
     };
     return tiger;
   },
 
   /**
-   * 精雕秦汉金甲皇家华盖冲锋战车（含饕餮撞角、双龙辕木、12辐条飞镰战轮、皇家八角流苏华盖与双战旗）
+   * 精雕秦汉金甲皇家华盖冲锋战车（支持夹车炮机械变形展开与底盘拼接！）
    */
   createArticulated3DWarChariot(woodMat, goldMat, ironMat, glowMat) {
     const chariot = new THREE.Group();
@@ -1490,25 +1744,32 @@ Object.assign(Xiangqi3DApp.prototype, {
     frontWall.position.set(0, 0.76, 0.58);
     const frontShield = new THREE.Mesh(new THREE.BoxGeometry(0.98, 0.42, 0.18), goldMat);
     frontShield.position.set(0, 0.76, 0.60);
-    // 车前饕餮破阵尖刺撞角
+
+    // 车前饕餮破阵尖刺撞角总成（合体时可向前机械伸出展开）
+    const frontRamGroup = new THREE.Group();
     [-0.36, 0, 0.36].forEach((rx, idx) => {
       const ramSpike = new THREE.Mesh(new THREE.ConeGeometry(idx === 1 ? 0.14 : 0.10, idx === 1 ? 0.52 : 0.38, 4), glowMat);
       ramSpike.rotation.x = Math.PI / 2;
       ramSpike.position.set(rx, 0.62, 0.84);
-      chariot.add(ramSpike);
+      frontRamGroup.add(ramSpike);
     });
-    chariot.add(base, baseFrame, frontWall, frontShield);
+    chariot.add(base, baseFrame, frontWall, frontShield, frontRamGroup);
 
-    [-0.58, 0.58].forEach(sx => {
+    const sideWallGroups = [-0.58, 0.58].map((sx) => {
+      const swGrp = new THREE.Group();
+      swGrp.position.set(sx, 0, 0);
       const sideWall = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.46, 1.22), woodMat);
-      sideWall.position.set(sx, 0.72, 0);
+      sideWall.position.set(0, 0.72, 0);
       const topRail = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.09, 1.28), goldMat);
-      topRail.position.set(sx, 0.96, 0);
-      chariot.add(sideWall, topRail);
+      topRail.position.set(0, 0.96, 0);
+      swGrp.add(sideWall, topRail);
+      chariot.add(swGrp);
+      return { swGrp, baseX: sx };
     });
 
     // 双龙战戟辕木
-    [-0.38, 0.38].forEach(px => {
+    const polesGroup = new THREE.Group();
+    [-0.38, 0.38].forEach((px) => {
       const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.055, 1.55, 12), goldMat);
       pole.rotation.x = Math.PI / 2;
       pole.position.set(px, 0.48, 1.20);
@@ -1518,10 +1779,12 @@ Object.assign(Xiangqi3DApp.prototype, {
       const crescent = new THREE.Mesh(new THREE.TorusGeometry(0.22, 0.035, 8, 16, Math.PI * 0.85), goldMat);
       crescent.rotation.x = Math.PI / 2;
       crescent.position.set(px, 0.48, 1.72);
-      chariot.add(pole, spearTip, crescent);
+      polesGroup.add(pole, spearTip, crescent);
     });
+    chariot.add(polesGroup);
 
-    // 皇家八角流苏华盖 (Imperial Canopy)
+    // 皇家八角流苏华盖总成（夹车炮合体时华盖可向下机械折叠收入车体，腾出顶部重炮对接基座！）
+    const canopyGroup = new THREE.Group();
     const canopyPillar = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.055, 1.55, 10), goldMat);
     canopyPillar.position.set(0, 1.25, -0.10);
     const canopyRoof = new THREE.Mesh(new THREE.ConeGeometry(0.78, 0.36, 8), woodMat);
@@ -1531,9 +1794,22 @@ Object.assign(Xiangqi3DApp.prototype, {
     canopyTrim.position.set(0, 1.92, -0.10);
     const canopyFinial = new THREE.Mesh(new THREE.OctahedronGeometry(0.12, 1), glowMat);
     canopyFinial.position.set(0, 2.32, -0.10);
-    chariot.add(canopyPillar, canopyRoof, canopyTrim, canopyFinial);
+    canopyGroup.add(canopyPillar, canopyRoof, canopyTrim, canopyFinial);
+    chariot.add(canopyGroup);
 
-    const banners = [-0.46, 0.46].map(bx => {
+    // 夹车炮机械变形专用的顶部重炮回转锁定座环 (默认隐藏在车厢内，变形时升起锁合重炮)
+    const turretDockRing = new THREE.Group();
+    const dockCollar = new THREE.Mesh(new THREE.CylinderGeometry(0.56, 0.64, 0.28, 20), goldMat);
+    const dockGlowRim = new THREE.Mesh(new THREE.TorusGeometry(0.60, 0.045, 10, 28), glowMat);
+    dockGlowRim.rotation.x = Math.PI / 2;
+    dockGlowRim.position.y = 0.14;
+    turretDockRing.add(dockCollar, dockGlowRim);
+    turretDockRing.position.set(0, 0.45, 0);
+    turretDockRing.scale.setScalar(0.01);
+    turretDockRing.visible = false;
+    chariot.add(turretDockRing);
+
+    const banners = [-0.46, 0.46].map((bx) => {
       const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.032, 0.042, 1.75, 8), goldMat);
       mast.position.set(bx, 1.28, -0.56);
       const flag = new THREE.Mesh(new THREE.PlaneGeometry(0.60, 0.82, 4, 4), glowMat);
@@ -1543,7 +1819,7 @@ Object.assign(Xiangqi3DApp.prototype, {
       return flag;
     });
 
-    const wheels = [-0.72, 0.72].map(wx => {
+    const wheels = [-0.72, 0.72].map((wx) => {
       const wGroup = new THREE.Group();
       wGroup.position.set(wx, 0.48, 0);
       const tire = new THREE.Mesh(new THREE.TorusGeometry(0.48, 0.060, 14, 36), goldMat);
@@ -1552,7 +1828,6 @@ Object.assign(Xiangqi3DApp.prototype, {
       innerRim.rotation.y = Math.PI / 2;
       const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.28, 16), ironMat);
       hub.rotation.z = Math.PI / 2;
-      // 车毂旋转破军飞镰刺
       const spike = new THREE.Mesh(new THREE.ConeGeometry(0.10, 0.42, 8), goldMat);
       spike.rotation.z = wx < 0 ? Math.PI / 2 : -Math.PI / 2;
       spike.position.x = wx < 0 ? -0.26 : 0.26;
@@ -1570,39 +1845,71 @@ Object.assign(Xiangqi3DApp.prototype, {
     chariot.userData = {
       wheels,
       banners,
+      canopyGroup,
+      sideWallGroups,
+      frontRamGroup,
+      turretDockRing,
       spinWheels(deltaSpin, time = 0) {
-        wheels.forEach(w => { w.rotation.x += deltaSpin; });
+        wheels.forEach((w) => { w.rotation.x += deltaSpin; });
         banners.forEach((f, idx) => { f.rotation.z = Math.sin(time * 16 + idx) * 0.18; });
+      },
+      /**
+       * 夹车炮机械变形：华盖折叠收起、两侧装甲与战轮横向外扩、重炮锁定座环升起
+       */
+      setAssemblyTransform(morphP) {
+        const t = Math.max(0, Math.min(1, morphP));
+        // 华盖平滑向下折叠缩入车体
+        canopyGroup.scale.set(1 - t * 0.85, Math.max(0.01, 1 - t), 1 - t * 0.85);
+        canopyGroup.position.y = -t * 0.85;
+        canopyGroup.visible = t < 0.95;
+        // 两侧护板与车轮向外机械滑出加宽底盘
+        sideWallGroups.forEach(({ swGrp, baseX }) => {
+          swGrp.position.x = baseX * (1 + t * 0.28);
+        });
+        wheels.forEach((w, idx) => {
+          const sign = idx === 0 ? -1 : 1;
+          w.position.x = sign * (0.72 + t * 0.24);
+        });
+        frontRamGroup.position.z = t * 0.28;
+        turretDockRing.visible = t > 0.05;
+        turretDockRing.scale.setScalar(Math.max(0.01, t));
+        turretDockRing.position.y = 0.45 + t * 0.48;
       }
     };
     return chariot;
   },
 
   /**
-   * 精雕红衣金龙神威大炮（含吞口金龙炮首、龙角龙牙、四道盘龙金箍、耳轴齿轮与包铁战轮）
+   * 精雕红衣金龙神威大炮（支持夹车炮机械变形：底轮折叠收起、双联副炮管展开并锁合至战车顶座！）
    */
   createArticulated3DCannon(woodMat, goldMat, ironMat, glowMat) {
     const cannon = new THREE.Group();
 
+    const carriageGroup = new THREE.Group();
     const carriage = new THREE.Mesh(new THREE.BoxGeometry(0.82, 0.30, 1.36), woodMat);
     carriage.position.y = 0.28;
     const carriagePlate = new THREE.Mesh(new THREE.BoxGeometry(0.86, 0.12, 1.40), goldMat);
     carriagePlate.position.y = 0.36;
-    cannon.add(carriage, carriagePlate);
+    carriageGroup.add(carriage, carriagePlate);
+    cannon.add(carriageGroup);
 
     const wheels = [];
+    const wheelGroups = [];
     [[-0.45, -0.44], [0.45, -0.44], [-0.45, 0.44], [0.45, 0.44]].forEach(([wx, wz]) => {
+      const wg = new THREE.Group();
+      wg.position.set(wx, 0.26, wz);
       const w = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.26, 0.12, 20), ironMat);
       w.rotation.z = Math.PI / 2;
-      w.position.set(wx, 0.26, wz);
       const rim = new THREE.Mesh(new THREE.TorusGeometry(0.26, 0.028, 10, 24), goldMat);
       rim.rotation.y = Math.PI / 2;
-      rim.position.set(wx + (wx > 0 ? 0.06 : -0.06), 0.26, wz);
+      rim.position.x = wx > 0 ? 0.06 : -0.06;
       const hubCap = new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.16, 8), goldMat);
       hubCap.rotation.z = wx > 0 ? -Math.PI / 2 : Math.PI / 2;
-      hubCap.position.set(wx + (wx > 0 ? 0.12 : -0.12), 0.26, wz);
-      cannon.add(w, rim, hubCap);
+      hubCap.position.x = wx > 0 ? 0.12 : -0.12;
+      wg.add(w, rim, hubCap);
+      cannon.add(wg);
       wheels.push(w);
+      wheelGroups.push({ wg, wx, wz });
     });
 
     const barrelPivot = new THREE.Group();
@@ -1611,16 +1918,15 @@ Object.assign(Xiangqi3DApp.prototype, {
     barrel.rotation.x = Math.PI / 2;
     barrelPivot.add(barrel);
 
-    [-0.60, -0.18, 0.26, 0.72].forEach(bz => {
+    [-0.60, -0.18, 0.26, 0.72].forEach((bz) => {
       const band = new THREE.Mesh(new THREE.TorusGeometry(0.245 - bz * 0.032, 0.042, 12, 28), goldMat);
       band.position.z = bz;
       barrelPivot.add(band);
     });
 
-    // 吞口金龙炮首雕塑（炮口龙唇圈、左右龙角与龙须）
     const muzzleRing = new THREE.Mesh(new THREE.TorusGeometry(0.23, 0.052, 14, 28), glowMat);
     muzzleRing.position.z = 0.88;
-    [-1, 1].forEach(s => {
+    [-1, 1].forEach((s) => {
       const dragonHorn = new THREE.Mesh(new THREE.ConeGeometry(0.048, 0.34, 6), goldMat);
       dragonHorn.position.set(s * 0.18, 0.24, 0.68);
       dragonHorn.rotation.x = -0.65;
@@ -1630,16 +1936,55 @@ Object.assign(Xiangqi3DApp.prototype, {
     const cascabelKnob = new THREE.Mesh(new THREE.SphereGeometry(0.18, 16, 16), goldMat);
     cascabelKnob.position.z = -0.96;
     barrelPivot.add(muzzleRing, cascabelKnob);
+
+    // 夹车炮机械变形时从主炮两侧滑出展开的左右双联神威副炮管 (Side Booster Barrels)
+    const sideBoosters = [-1, 1].map((side) => {
+      const bGrp = new THREE.Group();
+      const subTube = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.17, 1.48, 20), ironMat);
+      subTube.rotation.x = Math.PI / 2;
+      const subRing = new THREE.Mesh(new THREE.TorusGeometry(0.14, 0.032, 10, 20), goldMat);
+      subRing.position.z = 0.72;
+      const subGlow = new THREE.Mesh(new THREE.TorusGeometry(0.13, 0.028, 10, 20), glowMat);
+      subGlow.position.z = 0.75;
+      bGrp.add(subTube, subRing, subGlow);
+      bGrp.position.set(0, 0, -0.1);
+      bGrp.scale.setScalar(0.01);
+      bGrp.visible = false;
+      barrelPivot.add(bGrp);
+      return { bGrp, side };
+    });
+
     barrelPivot.rotation.x = -0.28;
     cannon.add(barrelPivot);
 
-    cannon.userData = { barrelPivot, muzzleRing, wheels };
+    cannon.userData = {
+      barrelPivot,
+      muzzleRing,
+      wheels,
+      wheelGroups,
+      sideBoosters,
+      /**
+       * 夹车炮机械变形：炮车四轮向内向上折叠收起为炮塔底座，左右两侧副炮管滑出展开！
+       */
+      setTurretTransform(morphP) {
+        const t = Math.max(0, Math.min(1, morphP));
+        wheelGroups.forEach(({ wg, wx, wz }) => {
+          wg.position.set(wx * (1 - t * 0.65), 0.26 + t * 0.18, wz * (1 - t * 0.25));
+          wg.rotation.z = (wx > 0 ? 1 : -1) * t * (Math.PI * 0.48);
+          wg.scale.setScalar(Math.max(0.01, 1 - t * 0.75));
+        });
+        sideBoosters.forEach(({ bGrp, side }) => {
+          bGrp.visible = t > 0.05;
+          bGrp.scale.setScalar(Math.max(0.01, t));
+          bGrp.position.set(side * 0.36 * t, -0.02, 0.08 * t);
+        });
+      }
+    };
     return cannon;
   },
 
   /**
-   * 精雕大唐明光铠金甲神将 3D 模型（新增：背插四杆护背龙旗靠旗、神将脑后乾坤金光轮、
-   * 八片叠甲战裙、双圆护心镜胸甲、吞肩兽首甲、凤翅鎏金兜鍪、冲天红缨、左臂护盾与右臂轩辕龙渊巨剑）
+   * 精雕大唐明光铠金甲神将 3D 模型（修正：手持轩辕巨剑的刀刃严格朝向正前方对手，处于垂直劈砍平面 Y-Z 内，绝不横着拿剑！）
    */
   createArticulated3DGeneral(goldMat, crimsonMat, ironMat, glowMat) {
     const general = new THREE.Group();
@@ -1672,7 +2017,7 @@ Object.assign(Xiangqi3DApp.prototype, {
     const chestTrim = new THREE.Mesh(new THREE.CylinderGeometry(0.47, 0.39, 0.70, 22, 1, false, -Math.PI * 0.44, Math.PI * 0.88), goldMat);
     chestTrim.position.y = 1.48;
 
-    [-0.16, 0.16].forEach(mx => {
+    [-0.16, 0.16].forEach((mx) => {
       const mirrorPlate = new THREE.Mesh(new THREE.CylinderGeometry(0.145, 0.145, 0.065, 20), glowMat);
       mirrorPlate.rotation.x = Math.PI / 2;
       mirrorPlate.position.set(mx, 1.56, 0.44);
@@ -1713,7 +2058,7 @@ Object.assign(Xiangqi3DApp.prototype, {
     neck.position.y = 1.94;
     const head = new THREE.Mesh(new THREE.SphereGeometry(0.24, 20, 18), goldMat);
     head.position.y = 2.14;
-    [-0.08, 0.08].forEach(ex => {
+    [-0.08, 0.08].forEach((ex) => {
       const eye = new THREE.Mesh(new THREE.SphereGeometry(0.034, 8, 8), glowMat);
       eye.position.set(ex, 2.15, 0.22);
       general.add(eye);
@@ -1736,7 +2081,7 @@ Object.assign(Xiangqi3DApp.prototype, {
     general.add(neck, head, helmetDome, visorBrow, crestBase, plume);
 
     // 左右凤翅、顿项护颊与吞肩兽首甲
-    [-1, 1].forEach(dir => {
+    [-1, 1].forEach((dir) => {
       const cheekGuard = new THREE.Mesh(new THREE.BoxGeometry(0.065, 0.27, 0.19), goldMat);
       cheekGuard.position.set(dir * 0.24, 2.10, 0.04);
       cheekGuard.rotation.z = dir * 0.18;
@@ -1775,7 +2120,7 @@ Object.assign(Xiangqi3DApp.prototype, {
     leftArmGroup.add(lUpper, buckler, bucklerBoss);
     general.add(leftArmGroup);
 
-    // 6. 右臂多关节与轩辕龙渊巨剑
+    // 6. 右臂多关节与轩辕龙渊巨剑（刀刃严格位于 Y-Z 纵向劈砍平面内，刀刃朝向正前方 +Z 对手，绝不横着拿剑！）
     const swordArmPivot = new THREE.Group();
     swordArmPivot.position.set(0.59, 1.74, 0);
     const upperArm = new THREE.Mesh(new THREE.CylinderGeometry(0.125, 0.105, 0.46, 14), goldMat);
@@ -1791,23 +2136,29 @@ Object.assign(Xiangqi3DApp.prototype, {
     const swordGroup = new THREE.Group();
     swordGroup.position.set(0, -0.52, 0.56);
     const pommelRing = new THREE.Mesh(new THREE.TorusGeometry(0.095, 0.030, 8, 16), goldMat);
+    pommelRing.rotation.y = Math.PI / 2; // 剑首环同样对齐 Y-Z 劈砍平面
     pommelRing.position.y = -0.28;
-    const hilt = new THREE.Mesh(new THREE.CylinderGeometry(0.058, 0.068, 0.52, 14), crimsonMat);
-    const guardCore = new THREE.Mesh(new THREE.BoxGeometry(0.72, 0.15, 0.22), goldMat);
+    const hilt = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.066, 0.52, 14), crimsonMat);
+    // 剑格护手沿 Z 轴（前后方向）展开，使刀刃前后方向宽、左右方向薄，正刃朝向对手！
+    const guardCore = new THREE.Mesh(new THREE.BoxGeometry(0.20, 0.15, 0.76), goldMat);
     guardCore.position.y = 0.28;
-    [-1, 1].forEach(dir => {
-      const guardWing = new THREE.Mesh(new THREE.ConeGeometry(0.095, 0.35, 6), goldMat);
-      guardWing.position.set(dir * 0.44, 0.36, 0);
-      guardWing.rotation.z = -dir * 0.85;
+    [-1, 1].forEach((dir) => {
+      const guardWing = new THREE.Mesh(new THREE.ConeGeometry(0.092, 0.36, 6), goldMat);
+      guardWing.position.set(0, 0.36, dir * 0.44);
+      guardWing.rotation.x = dir * 0.85;
       swordGroup.add(guardWing);
     });
-    const bladeOuter = new THREE.Mesh(new THREE.ConeGeometry(0.21, 2.85, 4), glowMat);
-    bladeOuter.scale.set(1.28, 1, 0.36);
+    // ConeGeometry(r, h, 4) 的四个棱角位于 ±X 与 ±Z；scale(0.24, 1, 1.36) 使 ±Z 方向为锋利刀刃（正对前方对手），±X 为扁平剑面！
+    const bladeOuter = new THREE.Mesh(new THREE.ConeGeometry(0.22, 2.88, 4), glowMat);
+    bladeOuter.scale.set(0.24, 1, 1.36);
     bladeOuter.position.y = 1.70;
-    const bladeFuller = new THREE.Mesh(new THREE.BoxGeometry(0.095, 2.25, 0.095), goldMat);
+    const bladeEdgeLine = new THREE.Mesh(new THREE.BoxGeometry(0.04, 2.65, 0.52), glowMat);
+    bladeEdgeLine.position.y = 1.56;
+    const bladeFuller = new THREE.Mesh(new THREE.BoxGeometry(0.11, 2.25, 0.14), goldMat);
     bladeFuller.position.y = 1.40;
-    swordGroup.add(pommelRing, hilt, guardCore, bladeOuter, bladeFuller);
-    swordGroup.rotation.x = Math.PI * 0.38;
+    swordGroup.add(pommelRing, hilt, guardCore, bladeOuter, bladeEdgeLine, bladeFuller);
+    // 仅绕 X 轴向前倾出，保持 Y=0, Z=0，刀刃 100% 垂直朝向正前方对手！
+    swordGroup.rotation.set(Math.PI * 0.38, 0, 0);
     swordArmPivot.add(swordGroup);
     general.add(swordArmPivot);
 
@@ -1815,17 +2166,6 @@ Object.assign(Xiangqi3DApp.prototype, {
     return general;
   },
 
-  /**
-   * =========================================================================
-   * 6 大超精细、高复杂度全屏 CG 绝杀专属场景构建器（不惜复杂化，彻底告别简陋）
-   * 1. cg_battlefield      —— 烽火万里·九鼎点将古战场巨景（双层八角点将坛、8尊盘龙拴马桩配铁索、四方饕餮巨鼎烈焰、环绕式万里长城城垛与四座重檐箭楼、攻城床弩、12面猎猎大纛战旗与层峦叠嶂远山云雾）
-   * 2. cg_imperial_citadel —— 九重玄铁禁城·困龙台巨景（用于闷宫、铁门栓、闷杀、困毙：黑曜石金脉广场、汉白玉困龙坛、8根盘龙金柱配宫灯、四方重檐皇城大殿与金色星轨阵纹）
-   * 3. cg_grassland        —— 千山叠翠·瑶池芳甸巨景（多层次起伏碧绿草甸、碧水环溪、4座汉白玉小拱桥、80+簇立体青草与36朵盛开三色野花、8棵苍松翠柏、16团立体白云；天地炮模式下含塌陷巨坑、24块掀翻翘起的地壳断岩、沸腾岩浆池与14根喷涌熔岩火柱）
-   * 4. cg_ocean_day        —— 沧海龙宫·千层碧浪巨景（真实深度遮挡海面、8座海蚀奇峰礁石群岛配拍岸白浪、6圈立体翻涌波涛管与16道卷曲浪冠）
-   * 5. cg_ocean_night      —— 星河瀚海·沧海月明巨景（深邃夜海、8座海崖石柱、12盏漂浮莲花河灯、90颗璀璨星辰与星河光带、中心大型多层圆月倒影与8层荡漾波纹）
-   * 6. cg_sunset_mountain  —— 雄关漫道·血日断崖巨景（远端险峻高山雄关、山巅石城垛口、悬崖栈道、迎客苍松、左右双翼烽火台、石板峡谷古道，以及带多层日冕与赤霞流云的巨型血色残阳）
-   * =========================================================================
-   */
   createCGSceneEnvironment(sceneType, parentGroup, options = {}) {
     const sceneGroup = new THREE.Group();
     sceneGroup.visible = false;
@@ -2548,7 +2888,8 @@ Object.assign(Xiangqi3DApp.prototype, {
         };
       }
     } else if (sceneType === 'cg_ocean_day') {
-      // 钓鱼马专属：沧海龙宫·千层碧浪巨景（含8座海蚀奇峰礁石岛屿、拍岸白浪、多层立体翻卷海浪管与真实深度遮挡海面）
+      // 钓鱼马专属：沧海龙宫·千层碧浪巨景（严格设置海面与浪花 renderOrder 为负数并开启硬件深度写入，
+      // 确保水下 y < 0 模型被海面自然遮挡，而水上 y > 0 的鱼钩、鱼线、跃出战马与棋子 100% 处于海面上层绝不被海水错误遮挡！）
       const deepSeaMat = registerMat(new THREE.MeshStandardMaterial({
         color: 0x0369a1,
         emissive: 0x075985,
@@ -2559,31 +2900,30 @@ Object.assign(Xiangqi3DApp.prototype, {
       const seaSurface = new THREE.Mesh(new THREE.CircleGeometry(52, 64), deepSeaMat);
       seaSurface.rotation.x = -Math.PI / 2;
       seaSurface.position.y = 0.0;
-      seaSurface.renderOrder = 2;
+      seaSurface.renderOrder = -12;
       sceneGroup.add(seaSurface);
 
       const waveFoamMat = registerMat(new THREE.MeshBasicMaterial({
         color: 0xe0f2fe,
         side: THREE.DoubleSide,
         depthWrite: false
-      }), 0.68);
+      }), 0.68, false);
       const waveCyanMat = registerMat(new THREE.MeshBasicMaterial({
         color: 0x38bdf8,
         blending: THREE.AdditiveBlending,
         side: THREE.DoubleSide,
         depthWrite: false
-      }), 0.58);
+      }), 0.58, false);
       const reefRockMat = registerMat(new THREE.MeshStandardMaterial({
         color: 0x1e293b,
         roughness: 0.78,
         metalness: 0.18
-      }), 0.98);
+      }), 0.98, true);
       const mossGreenMat = registerMat(new THREE.MeshStandardMaterial({
         color: 0x059669,
         roughness: 0.72
-      }), 0.96);
+      }), 0.96, true);
 
-      // 8 座海蚀奇峰礁石岛屿 + 岛基拍岸浪花环
       const surfRings = [];
       for (let i = 0; i < 8; i++) {
         const ang = (i / 8) * Math.PI * 2 + 0.25;
@@ -2593,13 +2933,17 @@ Object.assign(Xiangqi3DApp.prototype, {
         const h = 3.2 + (i % 3) * 1.4;
         const mainSpire = new THREE.Mesh(new THREE.ConeGeometry(1.65, h, 7), reefRockMat);
         mainSpire.position.y = h * 0.45;
+        mainSpire.renderOrder = -8;
         const subSpire = new THREE.Mesh(new THREE.DodecahedronGeometry(1.15, 0), reefRockMat);
         subSpire.position.set(0.95, 0.85, 0.45);
+        subSpire.renderOrder = -8;
         const topMoss = new THREE.Mesh(new THREE.ConeGeometry(0.95, 0.85, 7), mossGreenMat);
         topMoss.position.y = h * 0.78;
+        topMoss.renderOrder = -8;
         const surfRing = new THREE.Mesh(new THREE.RingGeometry(1.55, 2.25, 24), waveFoamMat);
         surfRing.rotation.x = -Math.PI / 2;
-        surfRing.position.y = 0.03;
+        surfRing.position.y = 0.015;
+        surfRing.renderOrder = -9;
         island.add(mainSpire, subSpire, topMoss, surfRing);
         sceneGroup.add(island);
         surfRings.push({ surfRing, phase: i * 0.8 });
@@ -2610,13 +2954,14 @@ Object.assign(Xiangqi3DApp.prototype, {
         for (let s = 0; s < 56; s++) {
           const a = (s / 56) * Math.PI * 2;
           const rad = r + Math.sin(a * (6 + idx * 2)) * 0.20;
-          pts.push(new THREE.Vector3(Math.cos(a) * rad, 0.045 + (idx % 2) * 0.035, Math.sin(a) * rad));
+          pts.push(new THREE.Vector3(Math.cos(a) * rad, 0.012 + (idx % 2) * 0.010, Math.sin(a) * rad));
         }
         const curve = new THREE.CatmullRomCurve3(pts, true);
         const mesh = new THREE.Mesh(
-          new THREE.TubeGeometry(curve, 72, 0.060, 8, true),
+          new THREE.TubeGeometry(curve, 72, 0.052, 8, true),
           idx % 2 === 0 ? waveFoamMat : waveCyanMat
         );
+        mesh.renderOrder = -9;
         sceneGroup.add(mesh);
         return { mesh, idx };
       });
@@ -2625,12 +2970,13 @@ Object.assign(Xiangqi3DApp.prototype, {
         const ang = (i / 18) * Math.PI * 2;
         const dist = 2.4 + (i % 5) * 1.85;
         const crest = new THREE.Mesh(
-          new THREE.TorusGeometry(0.72, 0.048, 8, 24, Math.PI * 0.88),
+          new THREE.TorusGeometry(0.72, 0.042, 8, 24, Math.PI * 0.88),
           i % 2 === 0 ? waveFoamMat : waveCyanMat
         );
-        crest.position.set(Math.cos(ang) * dist, 0.055, Math.sin(ang) * dist);
+        crest.position.set(Math.cos(ang) * dist, 0.016, Math.sin(ang) * dist);
         crest.rotation.x = Math.PI / 2;
         crest.rotation.z = ang;
+        crest.renderOrder = -9;
         sceneGroup.add(crest);
         return { crest, ang, dist, i };
       });
@@ -2643,7 +2989,7 @@ Object.assign(Xiangqi3DApp.prototype, {
         });
         linearSwells.forEach(({ crest, ang, dist, i }) => {
           const curR = dist + Math.sin(p * 8 + i) * 0.45;
-          crest.position.set(Math.cos(ang + p * 0.5) * curR, 0.055, Math.sin(ang + p * 0.5) * curR);
+          crest.position.set(Math.cos(ang + p * 0.5) * curR, 0.016, Math.sin(ang + p * 0.5) * curR);
         });
         surfRings.forEach(({ surfRing, phase }) => {
           const s = 0.92 + Math.sin(p * 12 + phase) * 0.16;
@@ -2651,81 +2997,203 @@ Object.assign(Xiangqi3DApp.prototype, {
         });
       });
     } else if (sceneType === 'cg_ocean_night') {
-      // 海底捞月专属：星河瀚海·沧海月明巨景（深邃夜海、海崖奇峰、12盏漂浮莲花河灯、90颗璀璨星辰、中心大型精雕圆月倒影与8层波纹）
+      // 海底捞月专属升级：精雕广寒玉盘明月倒影（含月海环形山肌理、桂影金晕、碎金月华波光带）+ 多层流光夜海碧波与十二莲花河灯
       const nightSeaMat = registerMat(new THREE.MeshStandardMaterial({
-        color: 0x041022,
-        emissive: 0x071d3a,
-        emissiveIntensity: 0.36,
-        roughness: 0.12,
-        metalness: 0.56
+        color: 0x031126,
+        emissive: 0x08254a,
+        emissiveIntensity: 0.44,
+        roughness: 0.08,
+        metalness: 0.68
       }), 0.98, true);
       const nightSea = new THREE.Mesh(new THREE.CircleGeometry(52, 64), nightSeaMat);
       nightSea.rotation.x = -Math.PI / 2;
       nightSea.position.y = 0.0;
+      nightSea.renderOrder = -14;
       sceneGroup.add(nightSea);
 
-      // 中心巨大的多层精雕圆月海中倒影
+      const createMoonCanvasTex = () => {
+        const c = document.createElement("canvas");
+        c.width = 512;
+        c.height = 512;
+        const ctx = c.getContext("2d");
+        const g = ctx.createRadialGradient(256, 256, 18, 256, 256, 248);
+        g.addColorStop(0.0, "rgba(255, 255, 250, 1.0)");
+        g.addColorStop(0.55, "rgba(254, 249, 195, 0.98)");
+        g.addColorStop(0.82, "rgba(253, 224, 71, 0.88)");
+        g.addColorStop(0.95, "rgba(56, 189, 248, 0.32)");
+        g.addColorStop(1.0, "rgba(56, 189, 248, 0.0)");
+        ctx.fillStyle = g;
+        ctx.fillRect(0, 0, 512, 512);
+
+        const craters = [
+          [195, 185, 58, 0.13],
+          [310, 215, 72, 0.14],
+          [235, 305, 64, 0.11],
+          [165, 285, 42, 0.10],
+          [325, 315, 46, 0.12]
+        ];
+        craters.forEach(([cx, cy, cr, alpha]) => {
+          const cg = ctx.createRadialGradient(cx, cy, cr * 0.1, cx, cy, cr);
+          cg.addColorStop(0, `rgba(180, 130, 40, ${alpha})`);
+          cg.addColorStop(0.7, `rgba(140, 100, 30, ${alpha * 0.6})`);
+          cg.addColorStop(1, "rgba(255, 250, 220, 0)");
+          ctx.fillStyle = cg;
+          ctx.beginPath();
+          ctx.arc(cx, cy, cr, 0, Math.PI * 2);
+          ctx.fill();
+        });
+
+        ctx.strokeStyle = "rgba(254, 240, 138, 0.65)";
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.arc(256, 256, 212, 0, Math.PI * 2);
+        ctx.stroke();
+        return new THREE.CanvasTexture(c);
+      };
+      const moonTex = createMoonCanvasTex();
+
+      const seaCausticsMat = registerMat(new THREE.MeshBasicMaterial({
+        color: 0x0ea5e9,
+        blending: THREE.AdditiveBlending,
+        side: THREE.DoubleSide,
+        depthWrite: false
+      }), 0.24, false);
+      const seaCausticsDisc = new THREE.Mesh(new THREE.RingGeometry(2.2, 16.5, 64), seaCausticsMat);
+      seaCausticsDisc.rotation.x = -Math.PI / 2;
+      seaCausticsDisc.position.y = 0.008;
+      seaCausticsDisc.renderOrder = -12;
+      sceneGroup.add(seaCausticsDisc);
+
       const moonReflectGroup = new THREE.Group();
-      moonReflectGroup.position.set(0, 0.022, 0);
+      moonReflectGroup.position.set(0, 0.020, 0);
       sceneGroup.add(moonReflectGroup);
 
       const moonCoreMat = registerMat(new THREE.MeshBasicMaterial({
-        color: 0xfef9c3,
+        map: moonTex,
+        color: 0xffffff,
+        transparent: true,
         side: THREE.DoubleSide,
         depthWrite: false
-      }), 0.94);
+      }), 0.96, false);
       const moonInnerMat = registerMat(new THREE.MeshBasicMaterial({
         color: 0xfde047,
         blending: THREE.AdditiveBlending,
         side: THREE.DoubleSide,
         depthWrite: false
-      }), 0.72);
+      }), 0.68, false);
       const moonOuterHaloMat = registerMat(new THREE.MeshBasicMaterial({
         color: 0x38bdf8,
         blending: THREE.AdditiveBlending,
         side: THREE.DoubleSide,
         depthWrite: false
-      }), 0.46);
+      }), 0.48, false);
 
-      const moonCoreDisc = new THREE.Mesh(new THREE.CircleGeometry(2.05, 64), moonCoreMat);
+      const moonCoreDisc = new THREE.Mesh(new THREE.CircleGeometry(2.38, 64), moonCoreMat);
       moonCoreDisc.rotation.x = -Math.PI / 2;
-      const moonInnerDisc = new THREE.Mesh(new THREE.CircleGeometry(2.68, 64), moonInnerMat);
+      moonCoreDisc.renderOrder = -6;
+      const moonInnerDisc = new THREE.Mesh(new THREE.CircleGeometry(2.95, 64), moonInnerMat);
       moonInnerDisc.rotation.x = -Math.PI / 2;
-      moonInnerDisc.position.y = -0.004;
-      const moonOuterHalo = new THREE.Mesh(new THREE.RingGeometry(1.95, 3.65, 64), moonOuterHaloMat);
+      moonInnerDisc.position.y = -0.003;
+      moonInnerDisc.renderOrder = -7;
+      const moonOuterHalo = new THREE.Mesh(new THREE.RingGeometry(2.10, 4.25, 64), moonOuterHaloMat);
       moonOuterHalo.rotation.x = -Math.PI / 2;
       moonOuterHalo.position.y = -0.006;
+      moonOuterHalo.renderOrder = -8;
       moonReflectGroup.add(moonOuterHalo, moonInnerDisc, moonCoreDisc);
 
-      // 海面 8 层波纹
-      const rippleRings = Array.from({ length: 8 }, (_, i) => {
+      const shimmerStripMat = registerMat(new THREE.MeshBasicMaterial({
+        color: 0xfef9c3,
+        blending: THREE.AdditiveBlending,
+        side: THREE.DoubleSide,
+        depthWrite: false
+      }), 0.62, false);
+      const moonShimmerStrips = Array.from({ length: 18 }, (_, i) => {
+        const zOff = (i - 8.5) * 0.26;
+        const halfChord = Math.sqrt(Math.max(0.2, 2.25 * 2.25 - zOff * zOff));
+        const strip = new THREE.Mesh(
+          new THREE.PlaneGeometry(halfChord * 1.85, 0.055),
+          shimmerStripMat
+        );
+        strip.rotation.x = -Math.PI / 2;
+        strip.position.set(0, 0.004, zOff);
+        strip.renderOrder = -5;
+        moonReflectGroup.add(strip);
+        return { strip, zOff, phase: i * 0.65 };
+      });
+
+      const rippleRings = Array.from({ length: 10 }, (_, i) => {
         const rMat = registerMat(new THREE.MeshBasicMaterial({
           color: i % 2 === 0 ? 0xfef08a : 0x7dd3fc,
           blending: THREE.AdditiveBlending,
           side: THREE.DoubleSide,
           depthWrite: false
-        }), 0.68);
-        const rMesh = new THREE.Mesh(new THREE.RingGeometry(0.42 + i * 0.52, 0.52 + i * 0.52, 56), rMat);
+        }), 0.72, false);
+        const rMesh = new THREE.Mesh(new THREE.RingGeometry(0.45 + i * 0.48, 0.54 + i * 0.48, 64), rMat);
         rMesh.rotation.x = -Math.PI / 2;
-        rMesh.position.y = 0.03 + i * 0.002;
+        rMesh.position.y = 0.024 + i * 0.001;
+        rMesh.renderOrder = -5;
         sceneGroup.add(rMesh);
         return { rMesh, rMat, i };
       });
 
-      // 12 盏海上漂浮发光莲花河灯 + 8 座远景海崖礁石
-      const lotusPetalMat = registerMat(new THREE.MeshBasicMaterial({ color: 0x7dd3fc }), 0.85);
-      const lotusCoreMat = registerMat(new THREE.MeshBasicMaterial({ color: 0xfef08a }), 0.95);
-      const cliffMat = registerMat(new THREE.MeshStandardMaterial({ color: 0x0b192c, roughness: 0.85 }), 0.95);
+      const nightWaveTubeMat = registerMat(new THREE.MeshBasicMaterial({
+        color: 0xbae6fd,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false
+      }), 0.46, false);
+      const nightWaveTubes = [2.6, 3.8, 5.2, 6.8, 8.6, 10.6].map((rad, idx) => {
+        const pts = [];
+        for (let s = 0; s < 56; s++) {
+          const a = (s / 56) * Math.PI * 2;
+          const r = rad + Math.sin(a * (7 + idx)) * 0.18;
+          pts.push(new THREE.Vector3(Math.cos(a) * r, 0.015, Math.sin(a) * r));
+        }
+        const tube = new THREE.Mesh(
+          new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts, true), 64, 0.036, 8, true),
+          nightWaveTubeMat
+        );
+        tube.renderOrder = -9;
+        sceneGroup.add(tube);
+        return { tube, idx };
+      });
+
+      const glintMat = registerMat(new THREE.MeshBasicMaterial({
+        color: 0xfef9c3,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false
+      }), 0.85, false);
+      const waterGlints = Array.from({ length: 32 }, (_, i) => {
+        const ga = (i / 32) * Math.PI * 2 + (i % 3) * 0.2;
+        const gr = 1.8 + (i % 7) * 1.25;
+        const glint = new THREE.Mesh(new THREE.OctahedronGeometry(0.065, 0), glintMat);
+        glint.scale.set(1.4, 0.25, 1.4);
+        glint.position.set(Math.cos(ga) * gr, 0.028, Math.sin(ga) * gr);
+        glint.renderOrder = -5;
+        sceneGroup.add(glint);
+        return { glint, ga, gr, phase: i * 0.7 };
+      });
+
+      const lotusPetalMat = registerMat(new THREE.MeshBasicMaterial({ color: 0x7dd3fc }), 0.88, false);
+      const lotusCoreMat = registerMat(new THREE.MeshBasicMaterial({ color: 0xfef08a }), 0.98, false);
+      const cliffMat = registerMat(new THREE.MeshStandardMaterial({ color: 0x0b192c, roughness: 0.85 }), 0.95, true);
       const seaLanterns = [];
 
       for (let l = 0; l < 12; l++) {
         const la = (l / 12) * Math.PI * 2 + 0.18;
-        const lr = 4.8 + (l % 3) * 1.85;
+        const lr = 4.9 + (l % 3) * 1.85;
         const lGrp = new THREE.Group();
         lGrp.position.set(Math.cos(la) * lr, 0.04, Math.sin(la) * lr);
-        const base = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.16, 0.10, 8), lotusPetalMat);
+        const base = new THREE.Mesh(new THREE.CylinderGeometry(0.30, 0.16, 0.09, 8), lotusPetalMat);
+        for (let pt = 0; pt < 8; pt++) {
+          const pa = (pt / 8) * Math.PI * 2;
+          const petal = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.22, 5), lotusPetalMat);
+          petal.position.set(Math.cos(pa) * 0.22, 0.06, Math.sin(pa) * 0.22);
+          petal.rotation.z = -Math.cos(pa) * 0.65;
+          petal.rotation.x = Math.sin(pa) * 0.65;
+          lGrp.add(petal);
+        }
         const wick = new THREE.Mesh(new THREE.SphereGeometry(0.11, 10, 10), lotusCoreMat);
-        wick.position.y = 0.08;
+        wick.position.y = 0.09;
         lGrp.add(base, wick);
         sceneGroup.add(lGrp);
         seaLanterns.push({ lGrp, la, lr, phase: l * 0.9 });
@@ -2733,20 +3201,35 @@ Object.assign(Xiangqi3DApp.prototype, {
 
       for (let c = 0; c < 8; c++) {
         const ca = (c / 8) * Math.PI * 2;
-        const cr = 12.8;
+        const cr = 13.2;
         const cliff = new THREE.Mesh(new THREE.ConeGeometry(1.8, 3.6 + (c % 2) * 1.4, 7), cliffMat);
         cliff.position.set(Math.cos(ca) * cr, 1.5, Math.sin(ca) * cr);
+        cliff.renderOrder = -10;
         sceneGroup.add(cliff);
       }
 
       animCallbacks.push((dt, p) => {
-        seaLanterns.forEach(sl => {
+        seaLanterns.forEach((sl) => {
           const curA = sl.la + p * 0.18;
           sl.lGrp.position.set(
             Math.cos(curA) * sl.lr,
             0.04 + Math.sin(p * 12 + sl.phase) * 0.03,
             Math.sin(curA) * sl.lr
           );
+        });
+        moonShimmerStrips.forEach(({ strip, phase }) => {
+          strip.position.x = Math.sin(p * 18 + phase) * 0.24;
+          const s = 0.85 + Math.cos(p * 15 + phase) * 0.18;
+          strip.scale.set(s, 1, 1);
+        });
+        nightWaveTubes.forEach(({ tube, idx }) => {
+          tube.rotation.y += dt * (idx % 2 === 0 ? 0.55 : -0.45);
+          const sc = 0.96 + Math.sin(p * 8 + idx) * 0.05;
+          tube.scale.set(sc, 1, sc);
+        });
+        waterGlints.forEach(({ glint, phase }) => {
+          const pulse = 0.5 + Math.abs(Math.sin(p * 22 + phase)) * 0.9;
+          glint.scale.set(pulse * 1.4, 0.25, pulse * 1.4);
         });
       });
 
@@ -2879,19 +3362,26 @@ Object.assign(Xiangqi3DApp.prototype, {
       sceneGroup.userData.redSunGroup = redSunGroup;
     }
 
+    sceneGroup.renderOrder = -12;
+    sceneGroup.traverse((obj) => {
+      if (obj.isMesh && obj.renderOrder === 0) {
+        obj.renderOrder = -10;
+      }
+    });
+
     return {
       sceneGroup,
       setFade(alpha, dt = 0.016, p = 0) {
         const clamped = Math.max(0, Math.min(1, alpha));
         sceneGroup.visible = clamped > 0.01;
-        sceneGroup.position.y = -(1 - clamped) * 0.55;
+        sceneGroup.position.y = -(1 - clamped) * 0.42;
         fadeMaterials.forEach(({ mat, baseOpacity, forceDepthWrite }) => {
           mat.opacity = baseOpacity * clamped;
           if (forceDepthWrite !== null) {
-            mat.depthWrite = clamped > 0.45 ? forceDepthWrite : false;
+            mat.depthWrite = clamped > 0.35 ? forceDepthWrite : false;
           }
         });
-        animCallbacks.forEach(cb => cb(dt, p));
+        animCallbacks.forEach((cb) => cb(dt, p));
       }
     };
   },
@@ -3299,22 +3789,57 @@ Object.assign(Xiangqi3DApp.prototype, {
       return results;
     };
 
-    const create3DChainBetween = (p1, p2, linkCount = 14, parentObj = group) => {
+    const create3DChainBetween = (p1, p2, linkCount = 18, parentObj = group) => {
       const chainGroup = new THREE.Group();
       const dir = new THREE.Vector3().subVectors(p2, p1);
-      const len = dir.length();
-      const normDir = len > 1e-4 ? dir.clone().normalize() : new THREE.Vector3(0, 1, 0);
+      const len = Math.max(0.001, dir.length());
+      const normDir = dir.clone().normalize();
       const quat = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), normDir);
-      for (let i = 0; i <= linkCount; i++) {
-        const f = i / linkCount;
-        const link = new THREE.Mesh(new THREE.TorusGeometry(0.16, 0.045, 8, 16), i % 2 === 0 ? darkIronMat : goldMat);
+
+      // 连贯的玄铁内芯索杆 + 紧密咬合无断层的环环相扣锁链环（支持沿路径滑动动画！）
+      const coreCable = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.036, 0.036, len, 10),
+        darkIronMat
+      );
+      const midPt = new THREE.Vector3().addVectors(p1, p2).multiplyScalar(0.5);
+      coreCable.position.copy(midPt);
+      coreCable.quaternion.copy(quat);
+      chainGroup.add(coreCable);
+
+      const denseCount = Math.max(linkCount, Math.ceil(len / 0.17));
+      const links = [];
+      for (let i = 0; i <= denseCount; i++) {
+        const f = i / Math.max(1, denseCount);
+        const link = new THREE.Mesh(
+          new THREE.TorusGeometry(0.115, 0.036, 8, 16),
+          i % 2 === 0 ? darkIronMat : goldMat
+        );
         link.position.lerpVectors(p1, p2, f);
         link.quaternion.copy(quat);
         if (i % 2 === 1) link.rotateY(Math.PI / 2);
         chainGroup.add(link);
+        links.push({ link, baseF: f, idx: i });
       }
+      const p1Saved = p1.clone();
+      const p2Saved = p2.clone();
+      chainGroup.userData = {
+        p1: p1Saved,
+        p2: p2Saved,
+        quat,
+        links,
+        denseCount,
+        advanceLinks(shiftAmount = 0) {
+          links.forEach(({ link, baseF, idx }) => {
+            let curF = (baseF + shiftAmount) % 1.0;
+            if (curF < 0) curF += 1.0;
+            link.position.lerpVectors(p1Saved, p2Saved, curF);
+            link.quaternion.copy(quat);
+            if (idx % 2 === 1) link.rotateY(Math.PI / 2);
+          });
+        }
+      };
       parentObj.add(chainGroup);
-      return { chainGroup, len };
+      return chainGroup;
     };
 
     /**
@@ -3586,6 +4111,11 @@ Object.assign(Xiangqi3DApp.prototype, {
 
         const driveRook = (rItem, sPos, lSpot, cEnd, chModel, mAura, idx) => {
           const sign = idx === 0 ? 1 : -1;
+          // 固定冲锋切线方向向量，杜绝战车到达终点 cEnd 时因位置与目标重合导致 Math.atan2(0,0) 突然反转朝向！
+          const fixedDirX = cEnd.x - lSpot.x;
+          const fixedDirZ = cEnd.z - lSpot.z;
+          const fixedHeadingYaw = Math.atan2(fixedDirX, fixedDirZ);
+
           if (p < 0.44) {
             const orbT = p / 0.44;
             const liftIn = smoothstep(0.0, 0.22, orbT);
@@ -3629,7 +4159,7 @@ Object.assign(Xiangqi3DApp.prototype, {
             if (morphT > 0.08) {
               chModel.visible = true;
               chModel.position.set(curX, curY, curZ);
-              this.faceTargetHorizontally(chModel, 0, 0);
+              chModel.rotation.set(0, fixedHeadingYaw, 0);
               chModel.scale.setScalar(1.08 * smoothstep(0.08, 0.95, morphT) * fade);
               chModel.userData.spinWheels(dt * 18, p * 5);
             } else {
@@ -3644,7 +4174,8 @@ Object.assign(Xiangqi3DApp.prototype, {
             const chargeT = smoothstep(0.44, 0.72, p);
             chModel.visible = true;
             chModel.position.lerpVectors(lSpot, cEnd, chargeT);
-            this.faceTargetHorizontally(chModel, cEnd.x, cEnd.z);
+            // 始终保持冲锋正向角度 fixedHeadingYaw，在终点及收尾绝不突变朝向！
+            chModel.rotation.set(0, fixedHeadingYaw, 0);
             const distCenter = chModel.position.length();
             const focusScale = 1.12 + Math.max(0, 1 - distCenter / 4.0) * 0.22;
             chModel.scale.setScalar(focusScale * fade);
@@ -3654,6 +4185,8 @@ Object.assign(Xiangqi3DApp.prototype, {
             mAura.update(cEnd, 1 - backT, fade);
             const chScale = 1.08 * (1 - smoothstep(0.0, 0.65, backT)) * fade;
             chModel.visible = chScale > 0.02;
+            chModel.position.copy(cEnd);
+            chModel.rotation.set(0, fixedHeadingYaw, 0);
             chModel.scale.setScalar(Math.max(0.001, chScale));
 
             if (rItem?.mesh) {
@@ -3689,7 +4222,7 @@ Object.assign(Xiangqi3DApp.prototype, {
             pl.rotation.z += (i === 0 ? 1 : -1) * dt * 1.5;
           });
         } else {
-          slashPlanes.forEach(pl => { pl.material.opacity = 0; });
+          slashPlanes.forEach((pl) => { pl.material.opacity = 0; });
         }
 
         if (vfxContext?.setCameraOverride) {
@@ -3704,20 +4237,20 @@ Object.assign(Xiangqi3DApp.prototype, {
 
     // =========================================================================
     // 2. 加强闷宫 (Smothered Palace):
-    // 同理困毙特写运镜与九重玄铁禁城场景，“将（帅）”聚焦放大至中心，
-    // 四面精雕重甲城墙（北、东、南、西）依次拔地升起合围（每升起一面“将（帅）”惊慌后退并触发震波），
-    // 最后重檐玄铁封顶大盖从天而降严丝合缝盖死，随后平滑切回终局棋面！
+    // “将（帅）”聚焦至中心后，依次尝试向北、东、南、西四个方向突围行走：
+    // 朝向并走向一个方向 -> 那个方向立即拔地升起城墙挡路 -> “将（帅）”被逼后退回中心，再转身尝试向下一个方向走；
+    // 直到四面墙全部升起合围后，才在原地惊慌抖动，紧接着重檐封顶大盖从天而降严丝合缝盖死！
     // =========================================================================
     if (vfxType === 'smothered_palace') {
       const cgScene = this.createCGSceneEnvironment('cg_imperial_citadel', group);
       const centerStage = new THREE.Vector3(0, 0.02, 0);
 
-      // 四面依次升起的精雕玄铁皇城城墙（0:北 -Z, 1:东 +X, 2:南 +Z, 3:西 -X）
+      // 四个方向定义：0:北 (0, -1), 1:东 (+1, 0), 2:南 (0, +1), 3:西 (-1, 0)
       const wallDefs = [
-        { x: 0, z: -1.65, ry: 0, startT: 0.14, endT: 0.26, dodgeX: 0, dodgeZ: 0.42 },
-        { x: 1.65, z: 0, ry: Math.PI / 2, startT: 0.26, endT: 0.38, dodgeX: -0.42, dodgeZ: 0 },
-        { x: 0, z: 1.65, ry: 0, startT: 0.38, endT: 0.50, dodgeX: 0, dodgeZ: -0.42 },
-        { x: -1.65, z: 0, ry: Math.PI / 2, startT: 0.50, endT: 0.62, dodgeX: 0.42, dodgeZ: 0 }
+        { x: 0, z: -1.65, ry: 0, dirX: 0, dirZ: -1, faceYaw: Math.PI, startT: 0.12, endT: 0.26 },
+        { x: 1.65, z: 0, ry: Math.PI / 2, dirX: 1, dirZ: 0, faceYaw: -Math.PI / 2, startT: 0.26, endT: 0.40 },
+        { x: 0, z: 1.65, ry: 0, dirX: 0, dirZ: 1, faceYaw: 0, startT: 0.40, endT: 0.54 },
+        { x: -1.65, z: 0, ry: Math.PI / 2, dirX: -1, dirZ: 0, faceYaw: Math.PI / 2, startT: 0.54, endT: 0.68 }
       ];
 
       const walls = wallDefs.map((o) => {
@@ -3731,7 +4264,7 @@ Object.assign(Xiangqi3DApp.prototype, {
         const topBeam = new THREE.Mesh(new THREE.BoxGeometry(3.52, 0.24, 0.44), goldMat);
         topBeam.position.y = 2.02;
 
-        [-1.52, 1.52].forEach(px => {
+        [-1.52, 1.52].forEach((px) => {
           const cornerPillar = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.24, 2.22, 12), goldMat);
           cornerPillar.position.set(px, 1.11, 0);
           wGroup.add(cornerPillar);
@@ -3756,7 +4289,6 @@ Object.assign(Xiangqi3DApp.prototype, {
         return { wGroup, riseWave, ...o };
       });
 
-      // 重檐玄铁鎏金封顶大盖
       const sealRoof = new THREE.Group();
       const roofRimFrame = new THREE.Mesh(new THREE.BoxGeometry(3.68, 0.28, 3.68), goldMat);
       roofRimFrame.position.y = -0.26;
@@ -3781,47 +4313,42 @@ Object.assign(Xiangqi3DApp.prototype, {
       const sealExplosion = create3DCannonExplosion(centerStage, 1.35);
 
       return wrapUpdater((p, dt, fade = 1) => {
-        const cgWeight = smoothstep(0.02, 0.18, p) * (1 - smoothstep(0.86, 0.98, p)) * fade;
+        const cgWeight = smoothstep(0.02, 0.16, p) * (1 - smoothstep(0.88, 0.98, p)) * fade;
         vfxContext?.setSceneTransition?.(cgWeight);
         cgScene.setFade(cgWeight, dt, p);
 
-        // 同理困毙特写运镜：环绕中心放大的“将（帅）”与依次升起的四面城墙
         if (vfxContext?.setCameraOverride) {
           vfxContext.setCameraOverride(
             new THREE.Vector3(0, 0.85, 0),
             9.2,
-            0.70,
-            p * 0.85
+            0.68,
+            p * 0.72
           );
         }
 
-        const fadeOut = 1 - smoothstep(0.86, 0.98, p);
-        let kingDodgeX = 0;
-        let kingDodgeZ = 0;
+        const fadeOut = 1 - smoothstep(0.88, 0.98, p);
 
-        // 四面城墙依次拔地而起
+        // 四面城墙：当“将（帅）”朝向该方向走过去时 (segP: 0.22 -> 0.68)，该方向的城墙拔地升起拦住去路！
         walls.forEach((w) => {
-          const localP = Math.max(0, Math.min(1, (p - w.startT) / (w.endT - w.startT)));
-          const easeRise = 1 - Math.pow(1 - localP, 3);
+          const segP = Math.max(0, Math.min(1, (p - w.startT) / (w.endT - w.startT)));
+          const wallRiseT = smoothstep(0.22, 0.68, segP);
+          const easeRise = 1 - Math.pow(1 - wallRiseT, 3);
           w.wGroup.position.y = THREE.MathUtils.lerp(-2.6, 0.0, easeRise);
           w.wGroup.scale.setScalar(fadeOut * fade);
 
-          if (localP > 0.05 && localP < 0.98) {
-            const env = Math.sin(localP * Math.PI);
-            kingDodgeX += w.dodgeX * env;
-            kingDodgeZ += w.dodgeZ * env;
-            w.riseWave.material.opacity = (1 - localP) * 0.85 * fadeOut;
-            w.riseWave.scale.setScalar(0.8 + localP * 1.8);
-            if (localP > 0.82 && localP < 0.92) {
-              this.cameraShake = Math.max(this.cameraShake || 0, 0.25);
+          if (wallRiseT > 0.05 && wallRiseT < 0.98) {
+            w.riseWave.material.opacity = (1 - wallRiseT) * 0.85 * fadeOut;
+            w.riseWave.scale.setScalar(0.8 + wallRiseT * 1.8);
+            if (wallRiseT > 0.75 && wallRiseT < 0.88) {
+              this.cameraShake = Math.max(this.cameraShake || 0, 0.24);
             }
           } else {
             w.riseWave.material.opacity = 0;
           }
         });
 
-        // 0.62 -> 0.78 最后重檐玄铁封顶大盖从天而降严丝合缝盖上！
-        const dropRaw = Math.min(1, Math.max(0, (p - 0.62) / 0.16));
+        // 四面墙全部升起且“将（帅）”在原地绝望抖动后 (0.72 -> 0.82)，重檐封顶大盖轰然落下盖死！
+        const dropRaw = Math.min(1, Math.max(0, (p - 0.72) / 0.10));
         const dropEase = dropRaw * dropRaw;
         sealRoof.position.set(0, THREE.MathUtils.lerp(7.8, 2.38, dropEase), 0);
         sealRoof.scale.setScalar(fadeOut * fade);
@@ -3829,40 +4356,91 @@ Object.assign(Xiangqi3DApp.prototype, {
         if (kingItem && kingItem.mesh) {
           kingItem.customDriven = true;
           const enlargedScale = 1.92;
-          if (p < 0.14) {
-            const toCenter = smoothstep(0.0, 0.14, p);
+          if (p < 0.12) {
+            // 0.00 -> 0.12: “将（帅）”飞至中心困龙台
+            const toCenter = smoothstep(0.0, 0.12, p);
             this.setPiece3DPose(
               kingItem.mesh,
               THREE.MathUtils.lerp(kPos.x, 0, toCenter),
               Math.sin(toCenter * Math.PI) * 0.75,
               THREE.MathUtils.lerp(kPos.z, 0, toCenter),
               0,
-              toCenter * Math.PI,
+              0,
               0,
               THREE.MathUtils.lerp(1.0, enlargedScale, toCenter),
               1.0,
               0.25
             );
-          } else if (p < 0.76) {
+          } else if (p < 0.68) {
+            // 0.12 -> 0.68: 依次尝试向北、东、南、西四个方向走：
+            // segP 0.00 -> 0.44 朝向该方向迈步走过去 -> 城墙升起拦住 -> segP 0.44 -> 1.00 惊退回中心！
+            let activeWall = walls[0];
+            for (const w of walls) {
+              if (p >= w.startT && p <= w.endT) {
+                activeWall = w;
+                break;
+              }
+            }
+            const segP = Math.max(0, Math.min(1, (p - activeWall.startT) / (activeWall.endT - activeWall.startT)));
+            let walkDist = 0;
+            let pitchTilt = 0;
+            let stepHopY = 0.02;
+            if (segP < 0.45) {
+              // 朝向该方向迈步前行
+              const fwdT = smoothstep(0.0, 0.44, segP);
+              walkDist = fwdT * 0.94;
+              stepHopY = 0.02 + Math.abs(Math.sin(fwdT * Math.PI * 2)) * 0.22;
+              pitchTilt = Math.sin(fwdT * Math.PI) * 0.26;
+            } else {
+              // 面前城墙升起，被逼向后退回中心！
+              const backT = smoothstep(0.45, 0.96, segP);
+              walkDist = (1 - backT) * 0.94;
+              stepHopY = 0.02 + Math.abs(Math.sin(backT * Math.PI * 2)) * 0.18;
+              pitchTilt = -Math.sin(backT * Math.PI) * 0.28;
+            }
+            const kx = activeWall.dirX * walkDist;
+            const kz = activeWall.dirZ * walkDist;
+            const rx = activeWall.dirZ * pitchTilt;
+            const rz = -activeWall.dirX * pitchTilt;
+
             this.setPiece3DPose(
               kingItem.mesh,
-              kingDodgeX,
-              0.02,
-              kingDodgeZ,
-              -kingDodgeZ * 0.35,
-              p * Math.PI * 2,
-              kingDodgeX * 0.35,
+              kx,
+              stepHopY,
+              kz,
+              rx,
+              activeWall.faceYaw,
+              rz,
               enlargedScale,
               1.0,
-              0.45,
+              0.42,
               0xfbbf24
             );
-          } else if (p < 0.86) {
-            const hitP = (p - 0.76) / 0.10;
+          } else if (p < 0.80) {
+            // 0.68 -> 0.80: 四面墙全部升起后，走投无路的“将（帅）”在原地剧烈惊慌抖动！
+            const panicP = (p - 0.68) / 0.12;
+            const jitterX = Math.sin(p * 165) * 0.14;
+            const jitterZ = Math.cos(p * 152) * 0.14;
+            const trembleTilt = Math.sin(p * 140) * 0.20;
+            this.setPiece3DPose(
+              kingItem.mesh,
+              jitterX,
+              0.02 + Math.abs(Math.sin(p * 90)) * 0.08,
+              jitterZ,
+              trembleTilt,
+              Math.sin(panicP * Math.PI * 4) * 0.35,
+              -trembleTilt,
+              enlargedScale,
+              1.0,
+              0.78,
+              0xef4444
+            );
+          } else if (p < 0.89) {
+            const hitP = (p - 0.80) / 0.09;
             sealExplosion.update.call(this, hitP, fade, centerStage);
             applyKingHitFeedback(hitP, 'heavy_smash', 0, 0, centerStage, enlargedScale);
           } else {
-            const backT = smoothstep(0.86, 0.98, p);
+            const backT = smoothstep(0.89, 0.99, p);
             this.setPiece3DPose(
               kingItem.mesh,
               THREE.MathUtils.lerp(0, kPos.x, backT),
@@ -3882,8 +4460,9 @@ Object.assign(Xiangqi3DApp.prototype, {
 
     // =========================================================================
     // 3. 对面笑 (Royal Gaze):
-    // 聚焦己方“将（帅）”向上缓慢飞起且场景逐渐转为古战场场景 -> 平滑变身成披甲将军建模 ->
-    // 挥舞着武器冲至对面（冲的途中场景平滑切回终局棋面） -> 将军建模在棋盘上斩杀对面的“帅（将）”！
+    // 变身后的神将手持巨剑【刀刃严格朝向正前方对手】，绝不横着拿剑；
+    // 全程在古战场场景中挥舞神剑冲至对面并一剑劈斩对面的“将（帅）”，
+    // 【砍完对面的“将（帅）”之后场景才会平滑变回终局棋面】，绝不在半路提前变回！
     // =========================================================================
     if (vfxType === 'royal_gaze') {
       const cgScene = this.createCGSceneEnvironment('cg_battlefield', group);
@@ -3897,33 +4476,43 @@ Object.assign(Xiangqi3DApp.prototype, {
       this.faceTargetHorizontally(general3D, kPos.x, kPos.z);
       group.add(general3D);
 
+      // 纵向劈砍刀光剑气（严格对齐 Y-Z 纵向劈砍平面，刀刃正对敌将）
       const swordWaveGroup = new THREE.Group();
       const waveOuterArc = new THREE.Mesh(
         new THREE.TorusGeometry(1.15, 0.11, 14, 36, Math.PI * 1.15),
         goldGlowMat.clone()
       );
+      waveOuterArc.rotation.y = Math.PI / 2;
       const waveInnerArc = new THREE.Mesh(
         new THREE.TorusGeometry(0.88, 0.07, 12, 32, Math.PI * 1.05),
         crimsonGlowMat.clone()
       );
+      waveInnerArc.rotation.y = Math.PI / 2;
       swordWaveGroup.add(waveOuterArc, waveInnerArc);
       swordWaveGroup.visible = false;
       this.faceTargetHorizontally(swordWaveGroup, kPos.x, kPos.z);
       group.add(swordWaveGroup);
 
-      const slashImpactExplosion = create3DCannonExplosion(kPos, 1.25);
+      const slashImpactExplosion = create3DCannonExplosion(kPos, 1.28);
 
       return wrapUpdater((p, dt, fade = 1) => {
-        const cgWeight = smoothstep(0.02, 0.26, p) * (1 - smoothstep(0.50, 0.72, p)) * fade;
+        // 关键修正：直到神将在 p=0.70->0.84 彻底砍完对面的“将（帅）”之后，在 p=0.84->0.97 场景才会平滑切回终局棋面！
+        const cgWeight = smoothstep(0.02, 0.24, p) * (1 - smoothstep(0.84, 0.97, p)) * fade;
         vfxContext?.setSceneTransition?.(cgWeight);
         cgScene.setFade(cgWeight, dt, p);
 
         const strikeStopZ = kPos.z - dirSign * 1.55;
 
-        if (p < 0.38) {
-          const riseT = smoothstep(0.0, 0.30, p);
-          const morphT = smoothstep(0.20, 0.38, p);
-          const curY = THREE.MathUtils.lerp(0, 1.95, riseT) * (1 - morphT * 0.85);
+        // 确保敌方“将（帅）”在古战场地面上清晰显示，并在 p >= 0.72 被神将迎面劈斩！
+        if (kingItem?.mesh && p < 0.72) {
+          kingItem.customDriven = true;
+          this.setPiece3DPose(kingItem.mesh, kPos.x, 0.02, kPos.z, 0, 0, 0, 1.18, 1.0, 0.25, 0xef4444);
+        }
+
+        if (p < 0.36) {
+          const riseT = smoothstep(0.0, 0.28, p);
+          const morphT = smoothstep(0.18, 0.36, p);
+          const curY = THREE.MathUtils.lerp(0, 1.85, riseT) * (1 - morphT * 0.85);
           const pScale = 1.0 + riseT * 0.65;
 
           if (royalItem?.mesh) {
@@ -3949,7 +4538,8 @@ Object.assign(Xiangqi3DApp.prototype, {
             general3D.position.set(royalStart.x, curY * 0.35 + 0.05, royalStart.z);
             this.faceTargetHorizontally(general3D, kPos.x, kPos.z);
             general3D.scale.setScalar(1.25 * smoothstep(0.08, 0.95, morphT) * fade);
-            general3D.userData.swordArmPivot.rotation.x = THREE.MathUtils.lerp(-0.4, -1.25, morphT);
+            // 仅在纵向平面绕 X 轴蓄力举剑，Y=0, Z=0 确保刀刃笔直朝向对手！
+            general3D.userData.swordArmPivot.rotation.set(THREE.MathUtils.lerp(-0.4, -1.35, morphT), 0, 0);
           } else {
             general3D.visible = false;
           }
@@ -3964,53 +4554,59 @@ Object.assign(Xiangqi3DApp.prototype, {
             );
           }
         } else {
-          const chargeT = smoothstep(0.38, 0.72, p);
+          const chargeT = smoothstep(0.36, 0.68, p);
           const curZ = THREE.MathUtils.lerp(royalStart.z, strikeStopZ, chargeT);
           const curX = THREE.MathUtils.lerp(royalStart.x, kPos.x, chargeT);
-          const strideBounce = p < 0.72 ? Math.abs(Math.sin(p * 38)) * 0.24 : 0;
+          const strideBounce = p < 0.68 ? Math.abs(Math.sin(p * 38)) * 0.24 : 0;
 
           if (royalItem?.mesh) {
             royalItem.customDriven = true;
-            const backAlpha = smoothstep(0.52, 0.74, p);
+            // 砍完敌将、场景切回终局棋面时 (p: 0.84 -> 0.96) 己方“帅（将）”棋子平滑显形归位
+            const backAlpha = smoothstep(0.84, 0.96, p);
             this.setPiece3DPose(royalItem.mesh, royalStart.x, 0, royalStart.z, 0, 0, 0, 1.0, backAlpha, 0);
           }
           morphAura.update(royalStart, 0, 0);
 
-          const genFadeOut = 1 - smoothstep(0.88, 0.98, p);
+          const genFadeOut = 1 - smoothstep(0.85, 0.96, p);
           general3D.visible = genFadeOut > 0.02;
           general3D.position.set(curX, 0.05 + strideBounce, curZ);
           this.faceTargetHorizontally(general3D, kPos.x, kPos.z);
           general3D.scale.setScalar(1.26 * genFadeOut * fade);
           general3D.userData.cape.rotation.x = 0.34 + Math.sin(p * 26) * 0.18;
 
-          if (p < 0.70) {
-            general3D.userData.swordArmPivot.rotation.x = -0.95 + Math.sin(p * 34) * 0.68;
-            general3D.userData.swordArmPivot.rotation.z = Math.cos(p * 17) * 0.32;
+          if (p < 0.68) {
+            // 奔跑冲锋途中：右臂在纵向平面内挥舞巨剑（刀刃始终朝向正前方对手，绝不横拿或侧歪）
+            const swingX = -1.05 + Math.sin(p * 32) * 0.58;
+            general3D.userData.swordArmPivot.rotation.set(swingX, 0, 0);
             swordWaveGroup.visible = true;
-            swordWaveGroup.position.set(curX, 1.05, curZ + dirSign * 0.95);
-            swordWaveGroup.rotation.z = Math.sin(p * 34) * 0.45;
+            swordWaveGroup.position.set(curX, 1.15, curZ + dirSign * 0.95);
+            swordWaveGroup.rotation.x = Math.sin(p * 32) * 0.35;
             swordWaveGroup.scale.setScalar(0.85 * fade);
           } else {
-            const cleaveP = Math.min(1, (p - 0.70) / 0.10);
-            general3D.userData.swordArmPivot.rotation.z = 0;
-            general3D.userData.swordArmPivot.rotation.x = THREE.MathUtils.lerp(-1.58, 1.02, Math.pow(cleaveP, 2.2));
-            swordWaveGroup.visible = p < 0.88;
-            swordWaveGroup.position.set(kPos.x, 0.85, kPos.z);
-            swordWaveGroup.rotation.z = 0;
-            swordWaveGroup.scale.setScalar((1.0 + cleaveP * 0.85) * genFadeOut * fade);
+            // 0.68 -> 0.84: 高举巨剑向对面“将（帅）”当头垂直劈下！
+            const cleaveP = Math.min(1, (p - 0.68) / 0.10);
+            general3D.userData.swordArmPivot.rotation.set(
+              THREE.MathUtils.lerp(-1.68, 0.98, Math.pow(cleaveP, 2.0)),
+              0,
+              0
+            );
+            swordWaveGroup.visible = p < 0.86;
+            swordWaveGroup.position.set(kPos.x, 0.88, kPos.z);
+            swordWaveGroup.rotation.x = cleaveP * 0.85;
+            swordWaveGroup.scale.setScalar((1.05 + cleaveP * 0.90) * genFadeOut * fade);
           }
 
-          if (p >= 0.75) {
-            const hitP = (p - 0.75) / 0.24;
+          if (p >= 0.72) {
+            const hitP = (p - 0.72) / 0.24;
             slashImpactExplosion.update.call(this, hitP, fade, kPos);
             applyKingHitFeedback(hitP, 'slash', 0, dirSign);
           }
 
           if (vfxContext?.setCameraOverride) {
             vfxContext.setCameraOverride(
-              new THREE.Vector3(curX, 0.78, THREE.MathUtils.lerp(curZ, kPos.z, 0.38)),
+              new THREE.Vector3(curX, 0.78, THREE.MathUtils.lerp(curZ, kPos.z, 0.42)),
               9.6,
-              0.90,
+              0.88,
               0.24
             );
           }
@@ -4020,9 +4616,6 @@ Object.assign(Xiangqi3DApp.prototype, {
 
     // =========================================================================
     // 4. 重炮杀 (Double Cannon):
-    // 两“炮”棋子飞跃放大至屏幕一左一右（同时平滑切换至战场） -> 在空中向中间合并成重炮建模并演示装弹动画 ->
-    // 重炮建模下落（同时渐渐平滑切回终局棋面） -> 落入合适位置向“将（帅）”开炮轰击！
-    // =========================================================================
     if (vfxType === 'double_cannon') {
       const cgScene = this.createCGSceneEnvironment('cg_battlefield', group);
       const cannonItem0 = findAttackerItemByType('c', null);
@@ -4474,14 +5067,13 @@ Object.assign(Xiangqi3DApp.prototype, {
 
         const doorW = 1.32;
         const doorH = 2.38;
-        // 左扇门合页位于 x = -doorW，右扇门合页位于 x = +doorW
         const leftHinge = new THREE.Group();
         leftHinge.position.set(-doorW, 1.22, 0);
         const rightHinge = new THREE.Group();
         rightHinge.position.set(doorW, 1.22, 0);
 
         [leftHinge, rightHinge].forEach((hinge, idx) => {
-          const sign = idx === 0 ? 1 : -1; // 门板相对于合页向内延伸 sign * doorW * 0.5
+          const sign = idx === 0 ? 1 : -1;
           const panel = new THREE.Mesh(new THREE.BoxGeometry(doorW, doorH, 0.16), crimsonLacquerMat);
           panel.position.x = sign * (doorW * 0.5);
           const border = new THREE.Mesh(new THREE.BoxGeometry(doorW + 0.04, doorH + 0.04, 0.12), goldMat);
@@ -4499,7 +5091,6 @@ Object.assign(Xiangqi3DApp.prototype, {
           }
         });
 
-        // 横向落锁玄铁门栓
         const boltBar = new THREE.Mesh(new THREE.BoxGeometry(2.45, 0.26, 0.24), darkIronMat);
         boltBar.position.set(0, 1.25, 0.18);
         const boltGoldTrim = new THREE.Mesh(new THREE.BoxGeometry(2.55, 0.10, 0.26), goldMat);
@@ -4513,44 +5104,75 @@ Object.assign(Xiangqi3DApp.prototype, {
         return { faceGrp, leftHinge, rightHinge, boltGroup, ...fd };
       });
 
-      // 3. 拉开镜头后围困房间的多重粗大玄铁锁链群（6层水平捆绑铁链圈 + 8条交叉斜拉铁链）
+      // 3. 连贯无断层的重型玄铁锁链群：
+      // (A) 6 层环绕捆绑房间的紧密咬合连贯铁链圈 (wrappingLoops)
+      // (B) 8 条斜向交叉捆绑房间的连贯铁链 (diagChains)
+      // (C) 12 条从房间四壁与四角直连向【屏幕四面八方】远端的崩紧拉索铁链 (radialScreenChains)
+      // 拉动收缩时，所有铁链的链环均沿着各自铁链路径高速流动平移（展现真实的拉动铁链运动感！）
       const chainsWrapper = new THREE.Group();
       chainsWrapper.visible = false;
       group.add(chainsWrapper);
 
-      [0.45, 0.85, 1.25, 1.65, 2.05, 2.40].forEach((cy, idx) => {
+      const radialChainsGroup = new THREE.Group();
+      radialChainsGroup.visible = false;
+      group.add(radialChainsGroup);
+
+      const wrappingLoops = [0.42, 0.82, 1.22, 1.62, 2.02, 2.42].map((cy, idx) => {
         const cLoop = new THREE.Group();
         cLoop.position.y = cy;
-        for (let k = 0; k < 28; k++) {
-          const a = (k / 28) * Math.PI * 2;
-          const r = 2.15;
+        const loopR = 2.08;
+        // 内部连贯玄铁环芯，彻底杜绝碎片感
+        const coreTorus = new THREE.Mesh(
+          new THREE.TorusGeometry(loopR, 0.042, 10, 64),
+          darkIronMat
+        );
+        coreTorus.rotation.x = Math.PI / 2;
+        cLoop.add(coreTorus);
+
+        const loopLinks = [];
+        const linkCount = 68;
+        for (let k = 0; k < linkCount; k++) {
+          const baseAngle = (k / linkCount) * Math.PI * 2;
           const link = new THREE.Mesh(
-            new THREE.TorusGeometry(0.18, 0.055, 8, 16),
+            new THREE.TorusGeometry(0.145, 0.045, 8, 16),
             (k + idx) % 2 === 0 ? darkIronMat : goldMat
           );
-          link.position.set(Math.cos(a) * r, 0, Math.sin(a) * r);
-          link.rotation.y = -a;
+          link.position.set(Math.cos(baseAngle) * loopR, 0, Math.sin(baseAngle) * loopR);
+          link.rotation.y = -baseAngle;
           if (k % 2 === 0) link.rotation.x = Math.PI / 2;
           cLoop.add(link);
+          loopLinks.push({ link, baseAngle, k });
         }
         chainsWrapper.add(cLoop);
+        return { cLoop, loopLinks, loopR, idx };
       });
 
       const diagPairs = [
-        [new THREE.Vector3(-2.1, 0.2, 2.1), new THREE.Vector3(2.1, 2.6, 2.1)],
-        [new THREE.Vector3(2.1, 0.2, 2.1), new THREE.Vector3(-2.1, 2.6, 2.1)],
-        [new THREE.Vector3(2.1, 0.2, -2.1), new THREE.Vector3(-2.1, 2.6, -2.1)],
-        [new THREE.Vector3(-2.1, 0.2, -2.1), new THREE.Vector3(2.1, 2.6, -2.1)],
-        [new THREE.Vector3(2.1, 0.2, -2.1), new THREE.Vector3(2.1, 2.6, 2.1)],
-        [new THREE.Vector3(2.1, 0.2, 2.1), new THREE.Vector3(2.1, 2.6, -2.1)],
-        [new THREE.Vector3(-2.1, 0.2, -2.1), new THREE.Vector3(-2.1, 2.6, 2.1)],
-        [new THREE.Vector3(-2.1, 0.2, 2.1), new THREE.Vector3(-2.1, 2.6, -2.1)]
+        [new THREE.Vector3(-2.05, 0.25, 2.05), new THREE.Vector3(2.05, 2.55, 2.05)],
+        [new THREE.Vector3(2.05, 0.25, 2.05), new THREE.Vector3(-2.05, 2.55, 2.05)],
+        [new THREE.Vector3(2.05, 0.25, -2.05), new THREE.Vector3(-2.05, 2.55, -2.05)],
+        [new THREE.Vector3(-2.05, 0.25, -2.05), new THREE.Vector3(2.05, 2.55, -2.05)],
+        [new THREE.Vector3(2.05, 0.25, -2.05), new THREE.Vector3(2.05, 2.55, 2.05)],
+        [new THREE.Vector3(2.05, 0.25, 2.05), new THREE.Vector3(2.05, 2.55, -2.05)],
+        [new THREE.Vector3(-2.05, 0.25, -2.05), new THREE.Vector3(-2.05, 2.55, 2.05)],
+        [new THREE.Vector3(-2.05, 0.25, 2.05), new THREE.Vector3(-2.05, 2.55, -2.05)]
       ];
-      diagPairs.forEach(([pA, pB]) => {
-        create3DChainBetween(pA, pB, 14, chainsWrapper);
-      });
+      const diagChains = diagPairs.map(([pA, pB]) => create3DChainBetween(pA, pB, 28, chainsWrapper));
 
-      // 4. 房间与“将（帅）”被铁链一起挤爆时的 28 块飞散门板/石柱/锁链破片
+      // 12 条连向屏幕四面八方的巨型拉索铁链（高、中、低多仰角辐射至视野外 r = 16.5）
+      const radialScreenChains = [];
+      for (let rIdx = 0; rIdx < 12; rIdx++) {
+        const azim = (rIdx / 12) * Math.PI * 2 + 0.18;
+        const innerR = 1.65;
+        const outerR = 16.5;
+        const innerY = 0.65 + (rIdx % 3) * 0.72;
+        const outerY = (rIdx % 3 === 0) ? 0.35 : (rIdx % 3 === 1 ? 3.8 : 7.2);
+        const pInner = new THREE.Vector3(Math.cos(azim) * innerR, innerY, Math.sin(azim) * innerR);
+        const pOuter = new THREE.Vector3(Math.cos(azim) * outerR, outerY, Math.sin(azim) * outerR);
+        const rChain = create3DChainBetween(pInner, pOuter, 86, radialChainsGroup);
+        radialScreenChains.push({ rChain, azim, innerY, outerY, outerR });
+      }
+
       const burstDebris = Array.from({ length: 28 }, (_, i) => {
         const a = (i / 28) * Math.PI * 2;
         const deb = new THREE.Mesh(
@@ -4574,11 +5196,11 @@ Object.assign(Xiangqi3DApp.prototype, {
         const emergeT = smoothstep(0.0, 0.14, p);
 
         if (p < 0.64) {
-          // 阶段1 & 2：四柱与敞开铁门升起 -> 镜头围绕“将（帅）”旋转一周，在四个面各停止一下，停止时镜头前的门轰然关上并上栓！
           roomGroup.visible = true;
           roomGroup.position.y = THREE.MathUtils.lerp(-2.5, 0, emergeT);
           roomGroup.scale.set(1, 1, 1);
           chainsWrapper.visible = false;
+          radialChainsGroup.visible = false;
           burstDebris.forEach(({ deb }) => { deb.visible = false; });
 
           let camTheta = 0;
@@ -4587,7 +5209,6 @@ Object.assign(Xiangqi3DApp.prototype, {
               const df = doorFaces[idx];
               if (p >= df.tStart && p <= df.tEnd) {
                 const segP = (p - df.tStart) / (df.tEnd - df.tStart);
-                // 前 38% 快速转镜至当前门面，后 62% 镜头稳稳停住（停止时当前门合拢落栓）
                 const moveCamT = smoothstep(0.0, 0.38, segP);
                 const prevTheta = idx === 0 ? 0 : doorFaces[idx - 1].camTheta;
                 camTheta = THREE.MathUtils.lerp(prevTheta, df.camTheta, moveCamT);
@@ -4598,13 +5219,11 @@ Object.assign(Xiangqi3DApp.prototype, {
 
           doorFaces.forEach((df) => {
             const segP = Math.max(0, Math.min(1, (p - df.tStart) / (df.tEnd - df.tStart)));
-            // 在镜头停住区间 (segP: 0.35 -> 0.85)，左右两扇门合拢关闭
             const closeDoorT = smoothstep(0.32, 0.82, segP);
             const openAngle = Math.PI * 0.56 * (1 - closeDoorT * closeDoorT);
             df.leftHinge.rotation.y = -openAngle;
             df.rightHinge.rotation.y = openAngle;
 
-            // 门关严瞬间 (segP > 0.76)，横栓滑入锁定并触发震屏
             if (segP >= 0.74) {
               const boltLockT = smoothstep(0.74, 0.96, segP);
               df.boltGroup.visible = true;
@@ -4634,9 +5253,10 @@ Object.assign(Xiangqi3DApp.prototype, {
             );
           }
         } else if (p < 0.79) {
-          // 阶段3：拉开镜头，许多粗大铁链把被门关起来的房间层层围起来，并猛烈向内收缩挤压整个房间！
-          const pullOutT = smoothstep(0.64, 0.72, p);
-          const squeezeT = smoothstep(0.70, 0.79, p);
+          // 阶段3：拉开镜头，连贯的捆绑铁链与连向屏幕四面八方的 12 根拉索铁链同时显现，
+          // 拉动铁链时，所有铁链链环沿各自铁链路径急速滑动抽紧，将整个房间强行向内挤压！
+          const pullOutT = smoothstep(0.64, 0.71, p);
+          const squeezeT = smoothstep(0.68, 0.79, p);
 
           doorFaces.forEach((df) => {
             df.leftHinge.rotation.y = 0;
@@ -4645,19 +5265,43 @@ Object.assign(Xiangqi3DApp.prototype, {
             df.boltGroup.position.x = 0;
           });
 
-          const squeezeXZ = THREE.MathUtils.lerp(1.0, 0.50, squeezeT * squeezeT);
-          const squeezeY = THREE.MathUtils.lerp(1.0, 0.82, squeezeT * squeezeT);
-          const jitter = Math.sin(p * 120) * 0.08 * squeezeT;
+          const squeezeXZ = THREE.MathUtils.lerp(1.0, 0.48, squeezeT * squeezeT);
+          const squeezeY = THREE.MathUtils.lerp(1.0, 0.80, squeezeT * squeezeT);
+          const jitter = Math.sin(p * 135) * 0.09 * squeezeT;
 
           roomGroup.visible = true;
           roomGroup.position.set(jitter, 0, -jitter);
           roomGroup.scale.set(squeezeXZ, squeezeY, squeezeXZ);
 
           chainsWrapper.visible = true;
-          const chainAppear = smoothstep(0.64, 0.69, p);
-          const chainSqueeze = THREE.MathUtils.lerp(1.22, 0.48, squeezeT * squeezeT);
-          chainsWrapper.scale.set(chainSqueeze * chainAppear, squeezeY * chainAppear, chainSqueeze * chainAppear);
-          chainsWrapper.rotation.y = squeezeT * 0.45;
+          radialChainsGroup.visible = true;
+          const chainSqueeze = THREE.MathUtils.lerp(1.10, 0.46, squeezeT * squeezeT);
+          chainsWrapper.scale.set(chainSqueeze, squeezeY, chainSqueeze);
+
+          // 链环沿铁链路径持续高速滑动（呈现往屏幕四面八方拽拉铁链的真实路径运动！）
+          const pathSlide = ((p - 0.64) / 0.15);
+          wrappingLoops.forEach(({ loopLinks, loopR, idx }) => {
+            const dirSign = idx % 2 === 0 ? 1 : -1;
+            const angleShift = pathSlide * Math.PI * 3.2 * dirSign;
+            loopLinks.forEach(({ link, baseAngle, k }) => {
+              const curA = baseAngle + angleShift;
+              link.position.set(Math.cos(curA) * loopR, 0, Math.sin(curA) * loopR);
+              link.rotation.set(k % 2 === 0 ? Math.PI / 2 : 0, -curA, 0);
+            });
+          });
+          diagChains.forEach((dc, idx) => {
+            dc.userData?.advanceLinks?.(pathSlide * 1.8 * (idx % 2 === 0 ? 1 : -1));
+          });
+          radialScreenChains.forEach(({ rChain, azim, innerY }) => {
+            // 内端随收缩的房间外壁一起向内收拢，链环沿着从房间通往屏幕四面八方的路径向外急速抽动！
+            const curInnerR = 1.65 * squeezeXZ;
+            rChain.userData.p1.set(Math.cos(azim) * curInnerR, innerY * squeezeY, Math.sin(azim) * curInnerR);
+            rChain.userData?.advanceLinks?.(pathSlide * 2.4);
+          });
+
+          if (squeezeT > 0.15) {
+            this.cameraShake = Math.max(this.cameraShake || 0, squeezeT * 0.30);
+          }
 
           if (kingItem && kingItem.mesh) {
             kingItem.customDriven = true;
@@ -4679,16 +5323,17 @@ Object.assign(Xiangqi3DApp.prototype, {
           if (vfxContext?.setCameraOverride) {
             vfxContext.setCameraOverride(
               new THREE.Vector3(0, 1.25, 0),
-              THREE.MathUtils.lerp(8.2, 13.8, pullOutT),
-              THREE.MathUtils.lerp(0.94, 0.74, pullOutT),
+              THREE.MathUtils.lerp(8.2, 14.2, pullOutT),
+              THREE.MathUtils.lerp(0.94, 0.72, pullOutT),
               Math.PI * 1.5 + pullOutT * 0.45
             );
           }
         } else {
-          // 阶段4：收缩铁链将整个房间连同里面的“将（帅）”一起轰然挤爆！随后平滑切回终局棋面
+          // 阶段4：收缩铁链将整个房间连同里面的“将（帅）”一起轰然挤爆！
           const burstP = Math.min(1, (p - 0.79) / 0.16);
           roomGroup.visible = false;
           chainsWrapper.visible = false;
+          radialChainsGroup.visible = false;
 
           crushExplosion.update.call(this, burstP, fade, new THREE.Vector3(0, 1.0, 0));
 
@@ -4712,7 +5357,6 @@ Object.assign(Xiangqi3DApp.prototype, {
           if (kingItem && kingItem.mesh) {
             kingItem.customDriven = true;
             if (p < 0.89) {
-              // “将（帅）”与房间一同被挤爆震飞
               applyKingHitFeedback((p - 0.79) / 0.10, 'cannon_blast', 0, 1, centerStage, 1.45);
             } else {
               const backT = smoothstep(0.89, 0.99, p);
@@ -4732,7 +5376,7 @@ Object.assign(Xiangqi3DApp.prototype, {
           }
 
           if (vfxContext?.setCameraOverride && p < 0.90) {
-            vfxContext.setCameraOverride(new THREE.Vector3(0, 1.05, 0), 13.8, 0.74, Math.PI * 1.95);
+            vfxContext.setCameraOverride(new THREE.Vector3(0, 1.05, 0), 14.2, 0.72, Math.PI * 1.95);
           }
         }
       });
@@ -4740,9 +5384,7 @@ Object.assign(Xiangqi3DApp.prototype, {
 
     // =========================================================================
     // 7. 侧面虎 (Side Tiger):
-    // 两枚棋子飞到空中合适位置，同时场景平滑切到绿色草地和蓝天白云 ->
-    // 建模老虎把这两枚棋子当做踏板依次跳跃（踩到踏板棋子时有下沉震动+波纹反馈） ->
-    // 猛虎扑出去（扑出去时场景平滑切回终局棋面） -> 最后扑向“将（帅）”！
+    // 高精度猛虎建模 + 伏地蓄力、腾跃舒展、踩踏棋子弹性屈膝压缩借力、凌空张爪交叉扑杀的流畅生动动作！
     // =========================================================================
     if (vfxType === 'side_tiger') {
       const cgScene = this.createCGSceneEnvironment('cg_grassland', group);
@@ -4754,13 +5396,13 @@ Object.assign(Xiangqi3DApp.prototype, {
       const sideSign = orig1.x >= kPos.x ? 1 : -1;
       const dirSign = kPos.z < 0 ? -1 : 1;
 
-      const tigerStartGround = new THREE.Vector3(kPos.x + sideSign * 4.5, 0.05, kPos.z - dirSign * 3.8);
-      const padPos1 = new THREE.Vector3(kPos.x + sideSign * 3.1, 1.35, kPos.z - dirSign * 2.55);
-      const padPos2 = new THREE.Vector3(kPos.x + sideSign * 1.75, 2.38, kPos.z - dirSign * 1.25);
-      const pounceTarget = new THREE.Vector3(kPos.x + sideSign * 0.25, 0.08, kPos.z - dirSign * 0.25);
+      const tigerStartGround = new THREE.Vector3(kPos.x + sideSign * 4.6, 0.05, kPos.z - dirSign * 3.9);
+      const padPos1 = new THREE.Vector3(kPos.x + sideSign * 3.15, 1.38, kPos.z - dirSign * 2.55);
+      const padPos2 = new THREE.Vector3(kPos.x + sideSign * 1.75, 2.42, kPos.z - dirSign * 1.25);
+      const pounceTarget = new THREE.Vector3(kPos.x + sideSign * 0.22, 0.08, kPos.z - dirSign * 0.22);
 
       const stepRipples = [padPos1, padPos2].map((pos) => {
-        const ring = new THREE.Mesh(new THREE.RingGeometry(0.45, 0.82, 32), goldGlowMat.clone());
+        const ring = new THREE.Mesh(new THREE.RingGeometry(0.45, 0.86, 36), goldGlowMat.clone());
         ring.rotation.x = -Math.PI / 2;
         ring.position.copy(pos);
         ring.visible = false;
@@ -4775,7 +5417,7 @@ Object.assign(Xiangqi3DApp.prototype, {
         ivoryFangMat,
         goldGlowMat
       );
-      tiger3D.scale.setScalar(1.20);
+      tiger3D.scale.setScalar(1.24);
       tiger3D.position.copy(tigerStartGround);
       this.faceTargetHorizontally(tiger3D, padPos1.x, padPos1.z);
       group.add(tiger3D);
@@ -4794,15 +5436,15 @@ Object.assign(Xiangqi3DApp.prototype, {
         claws.push({ arc, i });
       }
 
-      const tigerImpact = create3DCannonExplosion(kPos, 1.18);
+      const tigerImpact = create3DCannonExplosion(kPos, 1.22);
 
       return wrapUpdater((p, dt, fade = 1) => {
-        const cgWeight = smoothstep(0.02, 0.22, p) * (1 - smoothstep(0.56, 0.74, p)) * fade;
+        const cgWeight = smoothstep(0.02, 0.22, p) * (1 - smoothstep(0.58, 0.76, p)) * fade;
         vfxContext?.setSceneTransition?.(cgWeight);
         cgScene.setFade(cgWeight, dt, p);
 
-        const flyInT = smoothstep(0.0, 0.22, p);
-        const flyBackT = smoothstep(0.64, 0.88, p);
+        const flyInT = smoothstep(0.0, 0.20, p);
+        const flyBackT = smoothstep(0.66, 0.88, p);
 
         const updateSteppingPiece = (item, origPos, padPos, stepTime, rippleMesh, idx) => {
           if (!item?.mesh) return;
@@ -4815,22 +5457,22 @@ Object.assign(Xiangqi3DApp.prototype, {
           let tiltX = 0;
           let squash = 1.0;
           let glow = 0.15 * (1 - flyBackT);
-          if (distStep >= -0.02 && distStep <= 0.14) {
-            const st = (distStep + 0.02) / 0.16;
+          if (distStep >= -0.02 && distStep <= 0.15) {
+            const st = (distStep + 0.02) / 0.17;
             const env = Math.sin(st * Math.PI);
-            dipY = -env * 0.44;
-            tiltX = Math.sin(st * Math.PI * 3) * 0.28 * (1 - st);
-            squash = 1 + env * 0.24;
+            dipY = -env * 0.48;
+            tiltX = Math.sin(st * Math.PI * 3) * 0.30 * (1 - st);
+            squash = 1 + env * 0.26;
             glow = env * 0.95;
             rippleMesh.visible = true;
             rippleMesh.position.set(cur.x, cur.y + dipY + 0.15, cur.z);
-            rippleMesh.scale.setScalar((0.7 + st * 2.2) * fade);
-            rippleMesh.material.opacity = (1 - st) * 0.85 * fade;
+            rippleMesh.scale.setScalar((0.7 + st * 2.4) * fade);
+            rippleMesh.material.opacity = (1 - st) * 0.88 * fade;
           } else {
             rippleMesh.visible = false;
           }
 
-          const baseSc = THREE.MathUtils.lerp(1.0, 1.48, flyInT * (1 - flyBackT));
+          const baseSc = THREE.MathUtils.lerp(1.0, 1.50, flyInT * (1 - flyBackT));
           this.setPiece3DPose(
             item.mesh,
             cur.x,
@@ -4846,57 +5488,66 @@ Object.assign(Xiangqi3DApp.prototype, {
           );
         };
 
-        updateSteppingPiece(stepItem1, orig1, padPos1, 0.36, stepRipples[0], 0);
+        updateSteppingPiece(stepItem1, orig1, padPos1, 0.34, stepRipples[0], 0);
         if (stepItem2 !== stepItem1) {
           updateSteppingPiece(stepItem2, orig2, padPos2, 0.52, stepRipples[1], 1);
         }
 
+        const padTop1 = new THREE.Vector3(padPos1.x, padPos1.y + 0.22, padPos1.z);
+        const padTop2 = new THREE.Vector3(padPos2.x, padPos2.y + 0.22, padPos2.z);
         let tigerPos = new THREE.Vector3();
         let lookPt = kPos;
-        let jumpArc = 0;
-        if (p < 0.20) {
-          const prep = p / 0.20;
+
+        if (p < 0.18) {
+          // 1. 伏地蓄力：猛虎压低前胸、屈膝弓背、张口咆哮
+          const prep = p / 0.18;
           tigerPos.copy(tigerStartGround);
           lookPt = padPos1;
-          tiger3D.userData.animatePounce(p * 4, prep * 0.3, 0);
-        } else if (p < 0.36) {
-          const t1 = (p - 0.20) / 0.16;
-          tigerPos.lerpVectors(tigerStartGround, new THREE.Vector3(padPos1.x, padPos1.y + 0.22, padPos1.z), t1);
-          jumpArc = Math.sin(t1 * Math.PI) * 1.15;
-          tigerPos.y += jumpArc;
+          tiger3D.userData.animatePounce(p * 5, prep, 0, 'crouch');
+        } else if (p < 0.34) {
+          // 2. 第一跃：从地面弹射跃上第一枚踏板棋子
+          const t1 = (p - 0.18) / 0.16;
+          tigerPos.lerpVectors(tigerStartGround, padTop1, t1);
+          tigerPos.y += Math.sin(t1 * Math.PI) * 1.28;
           lookPt = padPos1;
-          tiger3D.userData.animatePounce(p * 5, t1, 0);
-        } else if (p < 0.52) {
-          const t2 = (p - 0.36) / 0.16;
-          tigerPos.lerpVectors(
-            new THREE.Vector3(padPos1.x, padPos1.y + 0.15, padPos1.z),
-            new THREE.Vector3(padPos2.x, padPos2.y + 0.22, padPos2.z),
-            t2
-          );
-          jumpArc = Math.sin(t2 * Math.PI) * 1.25;
-          tigerPos.y += jumpArc;
+          tiger3D.userData.animatePounce(p * 6, t1, 0, 'leap');
+        } else if (p < 0.39) {
+          // 3. 第一枚踏板缓冲借力：四肢屈膝下压踏板并瞬间蓄力弹起
+          const c1 = (p - 0.34) / 0.05;
+          tigerPos.copy(padTop1);
+          tigerPos.y -= Math.sin(c1 * Math.PI) * 0.35;
           lookPt = padPos2;
-          tiger3D.userData.animatePounce(p * 5, t2, 0);
-        } else {
-          const t3 = Math.min(1, (p - 0.52) / 0.24);
-          const ease3 = 1 - Math.pow(1 - t3, 2.4);
-          tigerPos.lerpVectors(
-            new THREE.Vector3(padPos2.x, padPos2.y + 0.15, padPos2.z),
-            pounceTarget,
-            ease3
-          );
-          jumpArc = Math.sin(t3 * Math.PI) * 1.85;
-          tigerPos.y += jumpArc;
+          tiger3D.userData.animatePounce(p * 6, c1, 0, 'step_compress');
+        } else if (p < 0.52) {
+          // 4. 第二跃：从第一枚踏板腾空跃上第二枚踏板棋子
+          const t2 = (p - 0.39) / 0.13;
+          tigerPos.lerpVectors(padTop1, padTop2, t2);
+          tigerPos.y += Math.sin(t2 * Math.PI) * 1.35;
+          lookPt = padPos2;
+          tiger3D.userData.animatePounce(p * 6, t2, 0, 'leap');
+        } else if (p < 0.57) {
+          // 5. 第二枚踏板缓冲借力：深蹲蓄势对准敌方“将（帅）”
+          const c2 = (p - 0.52) / 0.05;
+          tigerPos.copy(padTop2);
+          tigerPos.y -= Math.sin(c2 * Math.PI) * 0.38;
           lookPt = kPos;
-          const swipe = Math.max(0, (p - 0.70) / 0.28);
-          tiger3D.userData.animatePounce(p * 5.5, t3, swipe);
+          tiger3D.userData.animatePounce(p * 6, c2, 0, 'step_compress');
+        } else {
+          // 6. 凌空猛虎扑杀：高高跃起舒展虎躯，下落时双前爪大张交叉挥击拍碎“将（帅）”！
+          const t3 = Math.min(1, (p - 0.57) / 0.21);
+          const ease3 = 1 - Math.pow(1 - t3, 2.2);
+          tigerPos.lerpVectors(padTop2, pounceTarget, ease3);
+          tigerPos.y += Math.sin(t3 * Math.PI) * 2.05;
+          lookPt = kPos;
+          const swipe = Math.max(0, (p - 0.70) / 0.24);
+          tiger3D.userData.animatePounce(p * 6.5, t3, swipe, 'pounce_swipe');
         }
 
         const tigerFade = 1 - smoothstep(0.90, 0.99, p);
         tiger3D.visible = tigerFade > 0.02;
         tiger3D.position.copy(tigerPos);
         this.faceTargetHorizontally(tiger3D, lookPt.x, lookPt.z);
-        tiger3D.scale.setScalar(1.22 * tigerFade * fade);
+        tiger3D.scale.setScalar(1.25 * tigerFade * fade);
 
         if (p >= 0.73) {
           const hitP = (p - 0.73) / 0.26;
@@ -4929,14 +5580,14 @@ Object.assign(Xiangqi3DApp.prototype, {
 
     // =========================================================================
     // 8. 八角马 (Octagon Horse):
-    // “马”飞跃变身建模马，另一枚棋子变身为拿武器的建模将军（同时平滑切至绿色草地和蓝天白云） ->
-    // 建模将军骑在建模马上在草原奔跑一圈后（平滑切回终局棋面），建模马落回原点 ->
-    // 同时建模将军从马身上跃起掷出武器在空中优美刀轮旋转，在马落回原点的同时武器扎入“将（帅）”，且建模将军跳回终局棋面原点！
+    // 骑马时神将手持武器【刀刃严格朝向对手】（非横拿），
+    // 【战马奔跑动作幅度大幅增强】（四蹄大跨步腾跃起伏+身体俯仰摇摆），
+    // 【投掷出去的武器旋转方向反转修正】为顺着飞行方向的自然正手前旋刀轮！
     // =========================================================================
     if (vfxType === 'octagon_horse') {
       const cgScene = this.createCGSceneEnvironment('cg_grassland', group);
       const horseItem = findAttackerItemByType('n', null) || attackerItems[0];
-      const genItem = findAttackerItemByType('r', horseItem) || attackerItems.find(it => it !== horseItem) || horseItem;
+      const genItem = findAttackerItemByType('r', horseItem) || attackerItems.find((it) => it !== horseItem) || horseItem;
       const horseOrigin = horseItem?.basePos ? horseItem.basePos.clone() : new THREE.Vector3(cPos.x, 0, cPos.z);
       const genOrigin = genItem?.basePos ? genItem.basePos.clone() : new THREE.Vector3(kPos.x - 2.2, 0, kPos.z + 2.4);
 
@@ -4951,7 +5602,6 @@ Object.assign(Xiangqi3DApp.prototype, {
       riderGeneral.visible = false;
       group.add(riderGeneral);
 
-      // 将军投掷的精雕盘龙方天画戟（外层载体对准轨迹平面 + 内层 spinPivot 纯单轴优美刀轮旋转 + 3D 刀光剑轮环）
       const thrownSpear = new THREE.Group();
       const spearSpinPivot = new THREE.Group();
       thrownSpear.add(spearSpinPivot);
@@ -4961,7 +5611,7 @@ Object.assign(Xiangqi3DApp.prototype, {
       sTassel.position.y = 0.88;
       const sTip = new THREE.Mesh(new THREE.ConeGeometry(0.19, 0.88, 6), goldGlowMat.clone());
       sTip.position.y = 1.54;
-      [-1, 1].forEach(s => {
+      [-1, 1].forEach((s) => {
         const halberdCrescent = new THREE.Mesh(new THREE.TorusGeometry(0.36, 0.048, 10, 24, Math.PI * 0.9), goldMat);
         halberdCrescent.rotation.z = s === 1 ? -Math.PI * 0.45 : Math.PI * 0.55;
         halberdCrescent.position.set(s * 0.15, 0.95, 0);
@@ -5027,12 +5677,14 @@ Object.assign(Xiangqi3DApp.prototype, {
           const mScale = smoothstep(0.15, 0.95, morphT) * fade;
           octagonHorse.visible = mScale > 0.02;
           octagonHorse.position.copy(hp);
-          octagonHorse.scale.setScalar(1.12 * mScale);
-          octagonHorse.userData.animateGallop(p * 4, 0.35);
+          octagonHorse.scale.setScalar(1.14 * mScale);
+          octagonHorse.userData.animateGallop(p * 6.0, 0.42, 1.45);
 
           riderGeneral.visible = mScale > 0.02;
           riderGeneral.position.set(hp.x, hp.y + 0.86, hp.z - 0.05);
           riderGeneral.scale.setScalar(0.76 * mScale);
+          if (riderGeneral.userData.swordGroup) riderGeneral.userData.swordGroup.visible = true;
+          riderGeneral.userData.swordArmPivot.rotation.set(-0.85, 0, 0);
           thrownSpear.visible = false;
 
           if (vfxContext?.setCameraOverride) {
@@ -5046,26 +5698,31 @@ Object.assign(Xiangqi3DApp.prototype, {
 
           const lapT = (p - 0.24) / 0.38;
           const lapAngle = lapT * Math.PI * 2 + Math.PI * 0.5;
-          const rx = 3.85;
-          const rz = 2.95;
+          const rx = 3.95;
+          const rz = 3.05;
           const gx = Math.cos(lapAngle) * rx;
           const gz = Math.sin(lapAngle) * rz;
-          const nextAngle = lapAngle + 0.12;
+          const nextAngle = lapAngle + 0.14;
           const tx = Math.cos(nextAngle) * rx;
           const tz = Math.sin(nextAngle) * rz;
-          const gallopBounce = Math.abs(Math.sin(lapT * Math.PI * 10)) * 0.26;
+          // 战马奔跑动作幅度大幅增强：高腾跃起伏 + 大跨步四蹄飞驰 (strideAmp = 1.58)
+          const gallopPhase = lapT * Math.PI * 10;
+          const gallopBounce = Math.abs(Math.sin(gallopPhase)) * 0.48;
+          const gallopPitchRear = Math.sin(gallopPhase) * 0.42;
 
           octagonHorse.visible = true;
           octagonHorse.position.set(gx, 0.05 + gallopBounce, gz);
           this.faceTargetHorizontally(octagonHorse, tx, tz);
-          octagonHorse.userData.animateGallop(p * 5.2, 0.22);
-          octagonHorse.scale.setScalar(1.15 * fade);
+          octagonHorse.userData.animateGallop(p * 7.2, 0.22 + gallopPitchRear, 1.58);
+          octagonHorse.scale.setScalar(1.18 * fade);
 
           riderGeneral.visible = true;
-          riderGeneral.position.set(gx, 0.92 + gallopBounce, gz);
+          riderGeneral.position.set(gx, 0.94 + gallopBounce, gz);
           this.faceTargetHorizontally(riderGeneral, tx, tz);
           riderGeneral.scale.setScalar(0.78 * fade);
-          riderGeneral.userData.swordArmPivot.rotation.x = -0.85 + Math.sin(p * 24) * 0.35;
+          if (riderGeneral.userData.swordGroup) riderGeneral.userData.swordGroup.visible = true;
+          // 骑马时巨剑保持在纵向劈砍平面内挥动，刀刃正对前方，绝不横拿！
+          riderGeneral.userData.swordArmPivot.rotation.set(-0.92 + Math.sin(gallopPhase) * 0.42, 0, 0);
           thrownSpear.visible = false;
 
           if (vfxContext?.setCameraOverride) {
@@ -5082,12 +5739,12 @@ Object.assign(Xiangqi3DApp.prototype, {
           const launchStart = new THREE.Vector3(0, 0.05, 2.95);
 
           const hPos = new THREE.Vector3().lerpVectors(launchStart, horseOrigin, actionT);
-          hPos.y = 0.05 + Math.sin(actionT * Math.PI) * 1.95;
+          hPos.y = 0.05 + Math.sin(actionT * Math.PI) * 2.15;
           octagonHorse.visible = settleT < 0.92;
           octagonHorse.position.copy(hPos);
           this.faceTargetHorizontally(octagonHorse, kPos.x, kPos.z);
-          octagonHorse.userData.animateGallop(p * 4.5, Math.sin(actionT * Math.PI) * 0.68);
-          octagonHorse.scale.setScalar(1.12 * (1 - settleT) * fade);
+          octagonHorse.userData.animateGallop(p * 6.5, Math.sin(actionT * Math.PI) * 0.78, 1.50);
+          octagonHorse.scale.setScalar(1.14 * (1 - settleT) * fade);
 
           const gPos = new THREE.Vector3().lerpVectors(
             new THREE.Vector3(launchStart.x, 0.95, launchStart.z),
@@ -5099,12 +5756,12 @@ Object.assign(Xiangqi3DApp.prototype, {
           riderGeneral.position.copy(gPos);
           this.faceTargetHorizontally(riderGeneral, kPos.x, kPos.z);
           riderGeneral.scale.setScalar(0.78 * (1 - settleT) * fade);
-          riderGeneral.userData.swordArmPivot.rotation.x = THREE.MathUtils.lerp(-1.55, 0.95, Math.min(1, actionT * 1.8));
+          riderGeneral.userData.swordArmPivot.rotation.set(THREE.MathUtils.lerp(-1.55, 0.95, Math.min(1, actionT * 1.8)), 0, 0);
           if (riderGeneral.userData.swordGroup) {
             riderGeneral.userData.swordGroup.visible = false;
           }
 
-          // 优美武侠风单轴刀轮回旋：外层对准轨迹平面，内层 spinPivot 围绕 Z 轴纯平面高速飞轮旋转 + 刀轮光环！
+          // 修正投掷武器的旋转方向：反转 spinPivot 的旋转符号为 +actionT * Math.PI * 8（顺着投掷轨迹正向飞旋！）
           thrownSpear.visible = settleT < 0.96;
           const spearStart = new THREE.Vector3(launchStart.x, 2.65, launchStart.z);
           const spearEnd = new THREE.Vector3(kPos.x, 0.95, kPos.z);
@@ -5114,11 +5771,10 @@ Object.assign(Xiangqi3DApp.prototype, {
           const angleToKing = Math.atan2(kPos.x - spearStart.x, kPos.z - spearStart.z);
           if (actionT < 0.96) {
             thrownSpear.rotation.set(0.18, angleToKing + Math.PI * 0.5, 0);
-            spearSpinPivot.rotation.set(0, 0, -actionT * Math.PI * 8); // 4整圈纯平面刀轮高速飞旋
+            spearSpinPivot.rotation.set(0, 0, actionT * Math.PI * 8);
             spearWheelHalo.visible = true;
             spearWheelHalo.material.opacity = Math.sin(actionT * Math.PI) * 0.68 * fade;
           } else {
-            // 扎入“将（帅）”瞬间定格为锋刃斜插姿态
             thrownSpear.rotation.set(0, angleToKing, 0);
             spearSpinPivot.rotation.set(Math.PI * 0.88, 0, 0);
             spearWheelHalo.visible = false;
@@ -5155,10 +5811,9 @@ Object.assign(Xiangqi3DApp.prototype, {
 
     // =========================================================================
     // 9. 钓鱼马 (Fishing Horse):
-    // 聚焦“马”至屏幕中心并挂上鱼钩鱼线（聚焦的同时场景平滑切换至俯视海面·没有月亮） ->
-    // 聚焦后“马”沉入水中消失（鱼钩鱼线随之一起下沉，鱼线露出一部分在海面上，沉入海面下的建模全部被遮挡看不见） ->
-    // 随后收回鱼钩鱼线时拉出建模马，建模马身上带着对面的“将（帅）”棋子 ->
-    // 随后建模马和“将（帅）”落回终局棋盘原位置！
+    // 修复海面图层优先级：海面 renderOrder = -12 并开启硬件深度遮挡，
+    // 水上鱼钩、鱼线、跃出战马、浪花与棋子全部设置高优先级 renderOrder >= 15，
+    // 确保水上部分 100% 清晰显示绝不被海水错误遮挡，而沉入水下 y < 0 的部分被海面自然遮蔽！
     // =========================================================================
     if (vfxType === 'fishing_horse') {
       const cgScene = this.createCGSceneEnvironment('cg_ocean_day', group);
@@ -5166,6 +5821,7 @@ Object.assign(Xiangqi3DApp.prototype, {
       const horseOrigin = horseItem?.basePos ? horseItem.basePos.clone() : new THREE.Vector3(cPos.x, 0, cPos.z);
 
       const hookRig = new THREE.Group();
+      hookRig.renderOrder = 18;
       group.add(hookRig);
 
       const swivelRing = new THREE.Mesh(new THREE.TorusGeometry(0.16, 0.038, 10, 20), goldMat);
@@ -5189,28 +5845,44 @@ Object.assign(Xiangqi3DApp.prototype, {
       hookBarb.position.set(0.48, 0.06, 0);
       hookBarb.rotation.z = 2.38;
       hookRig.add(swivelRing, dragonChuck, hookTube, hookBarb);
+      hookRig.traverse((o) => { if (o.isMesh) o.renderOrder = 18; });
 
+      const lineMat = goldGlowMat.clone();
+      lineMat.depthTest = true;
       const upperFishingLine = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.026, 0.026, 1.0, 10),
-        goldGlowMat.clone()
+        new THREE.CylinderGeometry(0.028, 0.028, 1.0, 10),
+        lineMat
       );
+      upperFishingLine.renderOrder = 20;
       group.add(upperFishingLine);
 
       const waterEntryRing = new THREE.Mesh(new THREE.RingGeometry(0.28, 0.68, 36), cyanGlowMat.clone());
       waterEntryRing.rotation.x = -Math.PI / 2;
-      waterEntryRing.position.set(0, 0.035, 0);
+      waterEntryRing.position.set(0, 0.04, 0);
+      waterEntryRing.renderOrder = 16;
       group.add(waterEntryRing);
 
       const splashDrops = Array.from({ length: 18 }, (_, i) => {
         const ang = (i / 18) * Math.PI * 2;
         const drop = new THREE.Mesh(new THREE.SphereGeometry(0.075, 10, 10), i % 2 === 0 ? jadeIceMat : goldGlowMat.clone());
         drop.visible = false;
+        drop.renderOrder = 18;
         group.add(drop);
         return { drop, ang, spd: 1.5 + (i % 4) * 0.45, lift: 1.4 + (i % 3) * 0.5 };
       });
 
-      const emergedWarHorse = this.createArticulated3DWarHorse(jadeIceMat, goldMat, goldGlowMat);
+      // 使用高不透明度的白玉金甲材质制作跃出海面的 3D 战马，并赋予 renderOrder = 18，彻底杜绝被海面半透明层遮挡！
+      const emergedHorseBodyMat = new THREE.MeshStandardMaterial({
+        color: 0xe0f2fe,
+        emissive: 0x0284c7,
+        emissiveIntensity: 0.26,
+        metalness: 0.35,
+        roughness: 0.20
+      });
+      const emergedWarHorse = this.createArticulated3DWarHorse(emergedHorseBodyMat, goldMat, goldGlowMat);
       emergedWarHorse.visible = false;
+      emergedWarHorse.renderOrder = 18;
+      emergedWarHorse.traverse((o) => { if (o.isMesh) o.renderOrder = 18; });
       group.add(emergedWarHorse);
 
       const landExplosion = create3DCannonExplosion(kPos, 1.12);
@@ -5226,7 +5898,7 @@ Object.assign(Xiangqi3DApp.prototype, {
           const focusT = smoothstep(0.0, 0.22, p);
           const hx = THREE.MathUtils.lerp(horseOrigin.x, 0, focusT);
           const hz = THREE.MathUtils.lerp(horseOrigin.z, 0, focusT);
-          const hy = THREE.MathUtils.lerp(0, 1.45, focusT) + Math.sin(p * 18) * 0.08;
+          const hy = THREE.MathUtils.lerp(0.08, 1.45, focusT) + Math.sin(p * 18) * 0.08;
           const hScale = THREE.MathUtils.lerp(1.0, 1.58, focusT);
 
           if (horseItem?.mesh) {
@@ -5255,7 +5927,7 @@ Object.assign(Xiangqi3DApp.prototype, {
           hookRig.rotation.y = p * 4;
           hookRig.scale.setScalar(fade);
 
-          const lineBottomY = Math.max(0.02, hy + 0.95);
+          const lineBottomY = Math.max(0.05, hy + 0.95);
           const lineLen = Math.max(0.1, rodTopY - lineBottomY);
           upperFishingLine.visible = true;
           upperFishingLine.scale.set(1, lineLen, 1);
@@ -5280,7 +5952,7 @@ Object.assign(Xiangqi3DApp.prototype, {
 
           if (horseItem?.mesh) {
             horseItem.customDriven = true;
-            if (hy > 0.02) {
+            if (hy > 0.05) {
               const aboveRatio = Math.min(1, hy / 0.55);
               this.setPiece3DPose(
                 horseItem.mesh,
@@ -5305,7 +5977,7 @@ Object.assign(Xiangqi3DApp.prototype, {
           }
 
           const hookY = hy + 0.55;
-          if (hookY > 0.12) {
+          if (hookY > 0.15) {
             hookRig.visible = true;
             hookRig.position.set(0, hookY, 0);
           } else {
@@ -5314,10 +5986,10 @@ Object.assign(Xiangqi3DApp.prototype, {
 
           const lineTwitchX = p > 0.42 ? Math.sin(p * 85) * 0.12 : 0;
           const lineTwitchZ = p > 0.42 ? Math.cos(p * 78) * 0.12 : 0;
-          const visibleTopY = 4.8;
+          const visibleTopY = 5.2;
           upperFishingLine.visible = true;
           upperFishingLine.scale.set(1, visibleTopY, 1);
-          upperFishingLine.position.set(lineTwitchX, visibleTopY * 0.5, lineTwitchZ);
+          upperFishingLine.position.set(lineTwitchX, visibleTopY * 0.5 + 0.02, lineTwitchZ);
 
           const ripplePulse = 1.0 + ((p - 0.28) / 0.26) * 2.8;
           waterEntryRing.scale.setScalar(ripplePulse * fade);
@@ -5328,7 +6000,7 @@ Object.assign(Xiangqi3DApp.prototype, {
             if (splashP > 0 && splashP < 1) {
               drop.visible = true;
               const r = 0.3 + splashP * spd;
-              drop.position.set(Math.cos(ang) * r, Math.sin(splashP * Math.PI) * lift, Math.sin(ang) * r);
+              drop.position.set(Math.cos(ang) * r, Math.max(0.05, Math.sin(splashP * Math.PI) * lift), Math.sin(ang) * r);
               drop.scale.setScalar((1 - splashP * 0.6) * fade);
             } else {
               drop.visible = false;
@@ -5348,30 +6020,30 @@ Object.assign(Xiangqi3DApp.prototype, {
             horseItem.mesh.visible = false;
           }
 
-          if (emergeY > 0.0) {
+          if (emergeY > 0.04) {
             emergedWarHorse.visible = true;
             emergedWarHorse.position.set(0, emergeY, 0);
             this.faceTargetHorizontally(emergedWarHorse, kPos.x, kPos.z);
-            emergedWarHorse.userData.animateGallop(p * 4.8, Math.sin(pullT * Math.PI) * 0.82);
-            emergedWarHorse.scale.setScalar(1.18 * Math.min(1, emergeY / 0.6 + 0.3) * fade);
+            emergedWarHorse.userData.animateGallop(p * 5.2, Math.sin(pullT * Math.PI) * 0.85, 1.35);
+            emergedWarHorse.scale.setScalar(1.18 * Math.min(1, emergeY / 0.5 + 0.35) * fade);
           } else {
             emergedWarHorse.visible = false;
           }
 
           if (kingItem?.mesh) {
             kingItem.customDriven = true;
-            if (emergeY > 0.02) {
+            if (emergeY > 0.04) {
               this.setPiece3DPose(
                 kingItem.mesh,
                 0,
-                emergeY + 0.36,
+                emergeY + 0.42,
                 -0.38,
                 Math.sin(p * 42) * 0.35,
                 p * Math.PI * 3,
                 Math.cos(p * 38) * 0.35,
-                1.35,
+                1.38,
                 1.0,
-                0.72,
+                0.75,
                 0xef4444
               );
             } else {
@@ -5379,8 +6051,8 @@ Object.assign(Xiangqi3DApp.prototype, {
             }
           }
 
-          const hookCurrentY = Math.max(0.05, emergeY + 1.25);
-          hookRig.visible = emergeY > -0.2;
+          const hookCurrentY = Math.max(0.10, emergeY + 1.25);
+          hookRig.visible = emergeY > -0.15;
           hookRig.position.set(0, hookCurrentY, 0);
           hookRig.rotation.y = p * 5;
 
@@ -5394,7 +6066,7 @@ Object.assign(Xiangqi3DApp.prototype, {
             if (burstP > 0 && burstP < 1) {
               drop.visible = true;
               const r = 0.4 + burstP * spd * 1.45;
-              drop.position.set(Math.cos(ang) * r, Math.sin(burstP * Math.PI) * lift * 1.55, Math.sin(ang) * r);
+              drop.position.set(Math.cos(ang) * r, Math.max(0.05, Math.sin(burstP * Math.PI) * lift * 1.55), Math.sin(ang) * r);
               drop.scale.setScalar((1.2 - burstP * 0.6) * fade);
             } else {
               drop.visible = false;
@@ -5473,20 +6145,31 @@ Object.assign(Xiangqi3DApp.prototype, {
 
     // =========================================================================
     // 10. 列马车 (Standing Horse Chariot):
-    // “马”从屏幕下方升空变身建模马站在场景远端的山上，其背景有一个红色的太阳 ->
-    // 同时“车”在场景太阳的位置缓缓浮现在建模马后面（同时苍山残阳场景切换，场景的太阳和浮现的“车”一样大，要比建模马大一些） ->
-    // 在“车”浮现完成后，“车”变身成为建模车，建模车绕过马冲向“将（帅）”，建模马随后也直冲过去！
+    // 1. 棋盘上的“马”直接从原位高高跳跃至远端山巅（取代从屏幕下方升起），落地变身建模马；
+    // 2. 太阳位置上的“车”【不旋转】，定格正面缓缓浮现出来，浮现完成后变身为建模车；
+    // 3. 建模车绕过建模马冲向前景石台上的“将（帅）”，建模马随后直冲过去；
+    // 4. 修复前景“将（帅）”的图层与位置遮挡（置于山道前方高台 z=2.35, y=0.16 并微倾朝向镜头），且全流程运镜与场景切换丝滑衔接！
     // =========================================================================
     if (vfxType === 'standing_horse_chariot') {
       const cgScene = this.createCGSceneEnvironment('cg_sunset_mountain', group);
       const horseItem = findAttackerItemByType('n', null) || attackerItems[0];
-      const rookItem = findAttackerItemByType('r', horseItem) || attackerItems.find(it => it !== horseItem) || horseItem;
+      const rookItem = findAttackerItemByType('r', horseItem) || attackerItems.find((it) => it !== horseItem) || horseItem;
       const horseOrigin = horseItem?.basePos ? horseItem.basePos.clone() : new THREE.Vector3(cPos.x, 0, cPos.z);
       const rookOrigin = rookItem?.basePos ? rookItem.basePos.clone() : new THREE.Vector3(rPos.x, 0, rPos.z);
 
       const mountainPeakPos = new THREE.Vector3(0, 2.32, -5.8);
       const sunCenterPos = new THREE.Vector3(0, 4.15, -8.5);
-      const targetKingStagePos = new THREE.Vector3(0, 0.04, 3.2);
+      // 将受击“将（帅）”置于山道前方开阔高台 (0, 0.18, 2.35)，彻底避开远端山体 (-5.8) 与斜坡 (-3.35) 的几何遮挡！
+      const targetKingStagePos = new THREE.Vector3(0, 0.18, 2.35);
+
+      // 前景受击“将（帅）”脚下的玄铁鎏金点将圆台，凸显前景“将（帅）”层次
+      const kingForegroundPedestal = new THREE.Mesh(
+        new THREE.CylinderGeometry(1.15, 1.35, 0.16, 32),
+        goldMat
+      );
+      kingForegroundPedestal.position.set(0, 0.08, 2.35);
+      kingForegroundPedestal.renderOrder = 10;
+      group.add(kingForegroundPedestal);
 
       const horseMorphAura = this.createSmoothMorphAura(group, 0xfbbf24);
       const rookMorphAura = this.createSmoothMorphAura(group, 0xef4444);
@@ -5504,52 +6187,61 @@ Object.assign(Xiangqi3DApp.prototype, {
       const chariotBypassCurve = new THREE.CatmullRomCurve3([
         new THREE.Vector3(0, 3.35, -7.8),
         new THREE.Vector3(1.85, 2.30, -5.6),
-        new THREE.Vector3(1.25, 1.15, -2.2),
-        new THREE.Vector3(0.35, 0.05, 2.45)
+        new THREE.Vector3(1.25, 1.15, -2.0),
+        new THREE.Vector3(0.32, 0.16, 1.85)
       ]);
 
       const horseDirectCurve = new THREE.CatmullRomCurve3([
         mountainPeakPos.clone(),
-        new THREE.Vector3(0, 1.45, -2.8),
-        new THREE.Vector3(-0.35, 0.05, 2.35)
+        new THREE.Vector3(0, 1.45, -2.4),
+        new THREE.Vector3(-0.32, 0.16, 1.80)
       ]);
 
       const strikeExplosion = create3DCannonExplosion(targetKingStagePos, 1.32);
 
       return wrapUpdater((p, dt, fade = 1) => {
-        const cgWeight = smoothstep(0.02, 0.24, p) * (1 - smoothstep(0.78, 0.95, p)) * fade;
+        // 平滑自然的场景渐入与渐出权重
+        const cgWeight = smoothstep(0.0, 0.22, p) * (1 - smoothstep(0.80, 0.96, p)) * fade;
         vfxContext?.setSceneTransition?.(cgWeight);
         cgScene.setFade(cgWeight, dt, p);
 
+        kingForegroundPedestal.visible = cgWeight > 0.05;
+        kingForegroundPedestal.scale.setScalar(cgWeight);
+
+        // 全程确保“将（帅）”在前景高台清晰可见（朝向镜头微倾 0.32 rad），并在完全切回棋盘阶段 (0.82 -> 0.96) 平滑归位！
         if (kingItem?.mesh) {
           kingItem.customDriven = true;
-          const kToStage = smoothstep(0.0, 0.22, p);
-          const kToBoard = smoothstep(0.78, 0.95, p);
-          const curK = new THREE.Vector3().lerpVectors(kPos, targetKingStagePos, kToStage * (1 - kToBoard));
-          if (p >= 0.72 && p < 0.88) {
-            applyKingHitFeedback((p - 0.72) / 0.16, 'collision', 0, 1, curK, 1.32);
+          const kToStage = smoothstep(0.0, 0.20, p);
+          const kToBoard = smoothstep(0.82, 0.96, p);
+          const stageWeight = kToStage * (1 - kToBoard);
+          const curK = new THREE.Vector3().lerpVectors(kPos, targetKingStagePos, stageWeight);
+          curK.y += Math.sin(kToStage * Math.PI) * (p < 0.22 ? 1.15 : 0);
+
+          if (p >= 0.72 && p < 0.84) {
+            applyKingHitFeedback((p - 0.72) / 0.12, 'collision', 0, 1, targetKingStagePos, 1.48);
           } else {
             this.setPiece3DPose(
               kingItem.mesh,
               curK.x,
               curK.y,
               curK.z,
+              stageWeight * 0.32,
               0,
               0,
-              0,
-              THREE.MathUtils.lerp(1.0, 1.32, kToStage * (1 - kToBoard)),
+              THREE.MathUtils.lerp(1.0, 1.48, stageWeight),
               1.0,
-              0
+              stageWeight * 0.55,
+              0xef4444
             );
           }
         }
 
         if (p < 0.26) {
-          const riseT = smoothstep(0.0, 0.22, p);
-          const morphT = smoothstep(0.14, 0.26, p);
-          const screenBottomStart = new THREE.Vector3(0, -0.4, 5.2);
-          const hp = new THREE.Vector3().lerpVectors(screenBottomStart, mountainPeakPos, riseT);
-          hp.y += Math.sin(riseT * Math.PI) * 1.65;
+          // 1. 棋盘上的“马”从棋盘原位置 horseOrigin 沿高抛物线跳跃至远端山巅 mountainPeakPos！
+          const leapT = smoothstep(0.0, 0.22, p);
+          const morphT = smoothstep(0.15, 0.26, p);
+          const hp = new THREE.Vector3().lerpVectors(horseOrigin, mountainPeakPos, leapT);
+          hp.y += Math.sin(leapT * Math.PI) * 2.65;
 
           if (horseItem?.mesh) {
             horseItem.customDriven = true;
@@ -5558,73 +6250,59 @@ Object.assign(Xiangqi3DApp.prototype, {
               hp.x,
               hp.y,
               hp.z,
-              riseT * Math.PI * 2,
-              riseT * Math.PI * 3,
+              leapT * Math.PI * 2,
               0,
-              1.15,
+              0,
+              THREE.MathUtils.lerp(1.0, 1.25, leapT),
               1 - smoothstep(0.2, 0.9, morphT),
-              riseT * 0.75
+              leapT * 0.75
             );
           }
           if (rookItem?.mesh && rookItem !== horseItem) {
             rookItem.customDriven = true;
-            rookItem.mesh.visible = false;
+            // 过渡初期“车”在原位渐隐，准备在太阳中心浮现
+            this.setPiece3DPose(rookItem.mesh, rookOrigin.x, 0, rookOrigin.z, 0, 0, 0, 1.0, 1 - leapT, 0);
           }
 
           horseMorphAura.update(hp, morphT, fade);
-          const hScale = 1.05 * smoothstep(0.15, 0.95, morphT) * fade;
+          const hScale = 1.08 * smoothstep(0.15, 0.95, morphT) * fade;
           horse3D.visible = hScale > 0.02;
           horse3D.position.copy(mountainPeakPos);
           this.faceTargetHorizontally(horse3D, targetKingStagePos.x, targetKingStagePos.z);
-          horse3D.userData.animateGallop(p * 3.5, 0.48);
+          horse3D.userData.animateGallop(p * 4.2, 0.48, 1.25);
           horse3D.scale.setScalar(hScale);
           chariot3D.visible = false;
-
-          if (vfxContext?.setCameraOverride) {
-            vfxContext.setCameraOverride(
-              new THREE.Vector3(0, 2.25, -2.5),
-              12.8,
-              1.08,
-              0
-            );
-          }
         } else if (p < 0.48) {
+          // 2. 建模马屹立山巅，背景血色残阳位置的“车”棋子【不旋转】，保持端正姿态慢慢浮现出来！
           horseMorphAura.update(mountainPeakPos, 0, 0);
           if (horseItem?.mesh) { horseItem.customDriven = true; horseItem.mesh.visible = false; }
 
           horse3D.visible = true;
           horse3D.position.copy(mountainPeakPos);
-          horse3D.userData.animateGallop(p * 3.2, 0.35 + Math.sin(p * 12) * 0.15);
-          horse3D.scale.setScalar(1.05 * fade);
+          horse3D.userData.animateGallop(p * 3.8, 0.35 + Math.sin(p * 12) * 0.15, 1.2);
+          horse3D.scale.setScalar(1.08 * fade);
 
-          const emergeT = smoothstep(0.26, 0.45, p);
+          const emergeT = smoothstep(0.26, 0.46, p);
           if (rookItem?.mesh) {
             rookItem.customDriven = true;
+            // rx = Math.PI / 2, ry = 0, rz = 0（零旋转！文字面正对镜头，原地缓缓浮现）
             this.setPiece3DPose(
               rookItem.mesh,
               sunCenterPos.x,
-              sunCenterPos.y - 0.45 * (1 - emergeT),
-              sunCenterPos.z + 0.25,
+              sunCenterPos.y,
+              sunCenterPos.z + 0.32,
               Math.PI / 2,
               0,
-              (1 - emergeT) * Math.PI * 0.5,
-              3.75 * (0.82 + 0.18 * emergeT),
+              0,
+              3.75,
               emergeT,
-              emergeT * 0.65,
+              emergeT * 0.68,
               0xef4444
             );
           }
           chariot3D.visible = false;
-
-          if (vfxContext?.setCameraOverride) {
-            vfxContext.setCameraOverride(
-              new THREE.Vector3(0, 2.65, -4.2),
-              12.4,
-              1.10,
-              0
-            );
-          }
         } else if (p < 0.84) {
+          // 3. “车”浮现完成后变身为建模车，绕过山巅建模马冲向前景“将（帅）”，建模马随后直冲过去！
           const morphRookT = smoothstep(0.48, 0.56, p);
           rookMorphAura.update(new THREE.Vector3(0, 3.35, -7.8), morphRookT, fade);
 
@@ -5634,11 +6312,11 @@ Object.assign(Xiangqi3DApp.prototype, {
               rookItem.mesh,
               sunCenterPos.x,
               sunCenterPos.y,
-              sunCenterPos.z + 0.25,
+              sunCenterPos.z + 0.32,
               Math.PI / 2,
               0,
               0,
-              3.75 * (1 - morphRookT * 0.4),
+              3.75 * (1 - morphRookT * 0.35),
               1 - smoothstep(0.0, 0.85, morphRookT),
               0.8,
               0xef4444
@@ -5647,34 +6325,25 @@ Object.assign(Xiangqi3DApp.prototype, {
 
           const chariotRushT = smoothstep(0.52, 0.74, p);
           const chPt = chariotBypassCurve.getPoint(chariotRushT);
-          const chTan = chariotBypassCurve.getTangent(Math.min(0.99, chariotRushT));
+          const chTan = chariotBypassCurve.getTangent(Math.min(0.96, chariotRushT));
           chariot3D.visible = true;
           chariot3D.position.copy(chPt);
           this.faceTargetHorizontally(chariot3D, chPt.x + chTan.x, chPt.z + chTan.z);
           chariot3D.userData.spinWheels(dt * 28, p * 6);
           chariot3D.scale.setScalar(1.18 * smoothstep(0.48, 0.55, p) * fade);
 
-          const horseRushT = smoothstep(0.60, 0.78, p);
+          const horseRushT = smoothstep(0.59, 0.77, p);
           const hPt = horseDirectCurve.getPoint(horseRushT);
-          const hTan = horseDirectCurve.getTangent(Math.min(0.99, horseRushT));
+          const hTan = horseDirectCurve.getTangent(Math.min(0.96, horseRushT));
           horse3D.visible = true;
           horse3D.position.copy(hPt);
           this.faceTargetHorizontally(horse3D, hPt.x + hTan.x, hPt.z + hTan.z);
-          horse3D.userData.animateGallop(p * 5.5, horseRushT > 0.05 ? 0.28 : 0.55);
+          horse3D.userData.animateGallop(p * 6.2, horseRushT > 0.05 ? 0.28 : 0.55, 1.45);
           horse3D.scale.setScalar(1.12 * fade);
 
           if (p >= 0.72) {
-            const hitP = (p - 0.72) / 0.16;
+            const hitP = (p - 0.72) / 0.14;
             strikeExplosion.update.call(this, hitP, fade, targetKingStagePos);
-          }
-
-          if (vfxContext?.setCameraOverride) {
-            vfxContext.setCameraOverride(
-              new THREE.Vector3(0, THREE.MathUtils.lerp(2.2, 0.75, chariotRushT), THREE.MathUtils.lerp(-3.5, 1.5, chariotRushT)),
-              11.6,
-              THREE.MathUtils.lerp(1.06, 0.90, chariotRushT),
-              0.18
-            );
           }
         } else {
           const backT = smoothstep(0.84, 0.97, p);
@@ -5692,14 +6361,44 @@ Object.assign(Xiangqi3DApp.prototype, {
             this.setPiece3DPose(horseItem.mesh, horseOrigin.x, 0, horseOrigin.z, 0, 0, 0, 1.0, backT, 0);
           }
         }
+
+        // 全程连续 C1 平滑运镜：从棋盘平滑推向远山血日 -> 追随战车与战马下山冲向前景“将（帅）” -> 平滑回到终局棋盘！
+        if (vfxContext?.setCameraOverride) {
+          const toVista = smoothstep(0.0, 0.24, p);
+          const toCharge = smoothstep(0.50, 0.74, p);
+          const toBoard = smoothstep(0.82, 0.97, p);
+
+          let camY = THREE.MathUtils.lerp(0.65, 2.55, toVista);
+          camY = THREE.MathUtils.lerp(camY, 0.72, toCharge);
+          camY = THREE.MathUtils.lerp(camY, 0.45, toBoard);
+
+          let camZ = THREE.MathUtils.lerp(0.0, -3.6, toVista);
+          camZ = THREE.MathUtils.lerp(camZ, 1.45, toCharge);
+          camZ = THREE.MathUtils.lerp(camZ, 0.0, toBoard);
+
+          let camRad = THREE.MathUtils.lerp(11.2, 12.6, toVista);
+          camRad = THREE.MathUtils.lerp(camRad, 11.4, toCharge);
+          camRad = THREE.MathUtils.lerp(camRad, 11.0, toBoard);
+
+          let camPhi = THREE.MathUtils.lerp(0.86, 1.08, toVista);
+          camPhi = THREE.MathUtils.lerp(camPhi, 0.84, toCharge);
+          camPhi = THREE.MathUtils.lerp(camPhi, 0.88, toBoard);
+
+          vfxContext.setCameraOverride(
+            new THREE.Vector3(0, camY, camZ),
+            camRad,
+            camPhi,
+            toCharge * (1 - toBoard) * 0.16
+          );
+        }
       });
     }
 
     // =========================================================================
     // 11. 双将 (Double Check):
-    // 精细化双武器与合体巨剑建模 + 优美同心刀轮旋转（拒绝乱转） ->
-    // 两枚棋子丢出的武器在空中沿交汇轨道优美高速刀轮飞旋，同时平滑进入古战场场景 ->
-    // 在战场高空两个武器合体变成精细的轩辕大剑落下 -> 落下的同时渐渐平滑切回终局棋面，插在对面“将（帅）”身上！
+    // 修复电脑宽屏分辨率下另一枚棋子掷出武器不在屏幕内的问题：
+    // 动态计算双子与将帅的包络中心及跨度，两枚进攻棋子起跳时向舞台中心聚拢，
+    // 并自适应拉宽俯视运镜半径与焦点中心，确保电脑 16:9/21:9 与手机端均能完整同屏看到双子掷出神兵！
     // =========================================================================
     if (vfxType === 'double_check') {
       const cgScene = this.createCGSceneEnvironment('cg_battlefield', group);
@@ -5710,7 +6409,24 @@ Object.assign(Xiangqi3DApp.prototype, {
         ? checkerItem1.basePos.clone()
         : new THREE.Vector3(kPos.x + 3.0, 0, kPos.z + 2.2);
 
-      const mergeApex = new THREE.Vector3(kPos.x, 4.85, kPos.z);
+      // 将两枚起跳掷武器的棋子向视野中心聚拢，确保无论原棋盘坐标跨度多大都在电脑宽屏视野中央！
+      const stageThrowPos0 = new THREE.Vector3(
+        THREE.MathUtils.lerp(origin0.x, -2.15, 0.45),
+        0,
+        THREE.MathUtils.lerp(origin0.z, 0.65, 0.55)
+      );
+      const stageThrowPos1 = new THREE.Vector3(
+        THREE.MathUtils.lerp(origin1.x, 2.15, 0.45),
+        0,
+        THREE.MathUtils.lerp(origin1.z, 0.65, 0.55)
+      );
+      const midThrowCenter = new THREE.Vector3(
+        (stageThrowPos0.x + stageThrowPos1.x + kPos.x) / 3,
+        0,
+        (stageThrowPos0.z + stageThrowPos1.z + kPos.z) / 3
+      );
+      const mergeApex = new THREE.Vector3(kPos.x * 0.5, 4.35, (midThrowCenter.z + kPos.z) * 0.5);
+
       const { weapon1, weapon2, greatsword } = this.createRefinedDivineWeaponPairAndGreatsword(
         goldMat,
         crimsonLacquerMat,
@@ -5722,13 +6438,13 @@ Object.assign(Xiangqi3DApp.prototype, {
       greatsword.visible = false;
 
       const throwCurve0 = new THREE.QuadraticBezierCurve3(
-        new THREE.Vector3(origin0.x, 0.9, origin0.z),
-        new THREE.Vector3(kPos.x - 2.2, 5.6, (origin0.z + kPos.z) * 0.5),
+        new THREE.Vector3(stageThrowPos0.x, 1.05, stageThrowPos0.z),
+        new THREE.Vector3(mergeApex.x - 2.35, 4.95, (stageThrowPos0.z + mergeApex.z) * 0.5),
         mergeApex.clone()
       );
       const throwCurve1 = new THREE.QuadraticBezierCurve3(
-        new THREE.Vector3(origin1.x, 0.9, origin1.z),
-        new THREE.Vector3(kPos.x + 2.2, 5.6, (origin1.z + kPos.z) * 0.5),
+        new THREE.Vector3(stageThrowPos1.x, 1.05, stageThrowPos1.z),
+        new THREE.Vector3(mergeApex.x + 2.35, 4.95, (stageThrowPos1.z + mergeApex.z) * 0.5),
         mergeApex.clone()
       );
 
@@ -5741,29 +6457,31 @@ Object.assign(Xiangqi3DApp.prototype, {
         cgScene.setFade(cgWeight, dt, p);
 
         [
-          { item: checkerItem0, orig: origin0, sign: 1 },
-          { item: checkerItem1, orig: origin1, sign: -1 }
-        ].forEach(({ item, orig, sign }, idx) => {
+          { item: checkerItem0, orig: origin0, stageP: stageThrowPos0, sign: 1 },
+          { item: checkerItem1, orig: origin1, stageP: stageThrowPos1, sign: -1 }
+        ].forEach(({ item, orig, stageP, sign }, idx) => {
           if (!item?.mesh || (idx === 1 && checkerItem1 === checkerItem0)) return;
           item.customDriven = true;
-          const jumpArc = p < 0.36 ? Math.sin((p / 0.36) * Math.PI) * 1.45 : 0;
-          const sc = p < 0.36 ? 1.0 + Math.sin((p / 0.36) * Math.PI) * 0.38 : 1.0;
+          const gatherWeight = p < 0.36 ? Math.sin((p / 0.36) * Math.PI) : 0;
+          const curX = THREE.MathUtils.lerp(orig.x, stageP.x, gatherWeight);
+          const curZ = THREE.MathUtils.lerp(orig.z, stageP.z, gatherWeight);
+          const jumpArc = gatherWeight * 1.45;
+          const sc = 1.0 + gatherWeight * 0.42;
           this.setPiece3DPose(
             item.mesh,
-            orig.x,
+            curX,
             jumpArc,
-            orig.z,
+            curZ,
             jumpArc * 0.35 * sign,
             p < 0.36 ? (p / 0.36) * Math.PI * 2 * sign : 0,
             0,
             sc,
             1.0,
-            jumpArc * 0.45
+            gatherWeight * 0.55
           );
         });
 
         if (p < 0.36) {
-          // 阶段1：两柄神兵沿双龙弧线升空，外层载体固定倾角平面，内层 spinPivot 沿单一 Z 轴高速优美刀轮回旋（绝不乱转！）
           const throwT = smoothstep(0.02, 0.36, p);
           weapon1.visible = true;
           weapon2.visible = true;
@@ -5784,11 +6502,16 @@ Object.assign(Xiangqi3DApp.prototype, {
           fusionAura.update(mergeApex, smoothstep(0.24, 0.36, p) * 0.5, fade);
 
           if (vfxContext?.setCameraOverride) {
+            // 镜头焦点锁定在双子起跳中心与合体高空点之间，并适当拉远半径，确保电脑宽屏 100% 囊括双子掷出武器画面！
             vfxContext.setCameraOverride(
-              new THREE.Vector3(kPos.x, THREE.MathUtils.lerp(1.2, 4.2, throwT), kPos.z),
-              11.8,
-              0.92,
-              throwT * 0.25
+              new THREE.Vector3(
+                THREE.MathUtils.lerp(midThrowCenter.x, mergeApex.x, throwT),
+                THREE.MathUtils.lerp(1.1, 3.6, throwT),
+                THREE.MathUtils.lerp(midThrowCenter.z, mergeApex.z, throwT)
+              ),
+              14.6,
+              0.76,
+              throwT * 0.22
             );
           }
         } else if (p < 0.54) {
@@ -5806,8 +6529,8 @@ Object.assign(Xiangqi3DApp.prototype, {
             ? THREE.MathUtils.lerp(0.35, 1.36, fuseT / 0.45)
             : THREE.MathUtils.lerp(1.36, 1.22, (fuseT - 0.45) / 0.55);
           greatsword.scale.setScalar(popScale * fade);
-          greatsword.position.set(mergeApex.x, mergeApex.y + fuseT * 0.55, mergeApex.z);
-          // 轩辕巨剑合体时围绕自身剑身中轴线 (Y轴) 纯正旋转一周，威严端庄！
+          const swordPos = new THREE.Vector3().lerpVectors(mergeApex, new THREE.Vector3(kPos.x, mergeApex.y + 0.55, kPos.z), fuseT);
+          greatsword.position.copy(swordPos);
           greatsword.rotation.set(0, (1 - smoothstep(0.0, 0.9, fuseT)) * Math.PI * 2, 0);
           if (greatsword.userData.swordHaloRing) {
             greatsword.userData.swordHaloRing.rotation.z += dt * 9;
@@ -5815,10 +6538,10 @@ Object.assign(Xiangqi3DApp.prototype, {
 
           if (vfxContext?.setCameraOverride) {
             vfxContext.setCameraOverride(
-              new THREE.Vector3(mergeApex.x, mergeApex.y, mergeApex.z),
-              10.2,
-              0.98,
-              0.25 + fuseT * 0.3
+              swordPos.clone(),
+              THREE.MathUtils.lerp(14.6, 11.2, fuseT),
+              THREE.MathUtils.lerp(0.76, 0.92, fuseT),
+              0.22 + fuseT * 0.22
             );
           }
         } else {
@@ -5849,9 +6572,9 @@ Object.assign(Xiangqi3DApp.prototype, {
           if (vfxContext?.setCameraOverride) {
             vfxContext.setCameraOverride(
               new THREE.Vector3(kPos.x, THREE.MathUtils.lerp(4.2, 0.95, plungeT), kPos.z),
-              10.6,
+              11.2,
               0.90,
-              0.18
+              THREE.MathUtils.lerp(0.44, 0.18, plungeT)
             );
           }
         }
@@ -5860,21 +6583,25 @@ Object.assign(Xiangqi3DApp.prototype, {
 
     // =========================================================================
     // 12. 夹车炮 (Chariot Cannon Clamp):
-    // “车”和“炮”绕着某一点公转并升空（同时场景平滑切换为战场） ->
-    // 变成建模车和建模炮之后合体拼装成合体炮下落 ->
-    // 然后平滑切回终局棋面落到合适地点向“将（帅）”开炮！
+    // 1. 杜绝“消失变身替换为第三模型”：由建模车与建模炮自身发生【机械变形】后直接【上下咬合拼装】在一起！
+    //    - 建模车：顶部八角华盖向下机械折叠收起，两侧装甲护墙与四轮向外滑出扩宽底盘，升起顶部金色炮塔锁座；
+    //    - 建模炮：下方四个炮轮向内向上折叠收起为炮塔基座，主炮管两侧滑出展开双联神威副炮管，从上方严丝合缝扣入战车顶座！
+    // 2. 修复合体前建模车朝向摆反的问题：建模车与建模炮全程正向朝向敌方“将（帅）” (forwardYaw)；
+    // 3. 修复短暂画面回退：公转轨道与拼装起点及运镜参数全程 C1 连续平滑插值，零跳变、零回退！
     // =========================================================================
     if (vfxType === 'chariot_cannon_clamp') {
       const cgScene = this.createCGSceneEnvironment('cg_battlefield', group);
       const rookItem = findAttackerItemByType('r', null) || attackerItems[0];
-      const cannonItem = findAttackerItemByType('c', rookItem) || attackerItems.find(it => it !== rookItem) || rookItem;
+      const cannonItem = findAttackerItemByType('c', rookItem) || attackerItems.find((it) => it !== rookItem) || rookItem;
       const rookOrigin = rookItem?.basePos ? rookItem.basePos.clone() : new THREE.Vector3(kPos.x + 1.2, 0, kPos.z + 2.2);
       const cannonOrigin = cannonItem?.basePos ? cannonItem.basePos.clone() : new THREE.Vector3(kPos.x - 2.4, 0, kPos.z + 1.2);
 
       const dirSign = kPos.z < 0 ? -1 : 1;
       const fireGroundPos = new THREE.Vector3(kPos.x, 0.05, kPos.z - dirSign * 3.6);
       const orbitCenterXZ = new THREE.Vector3(kPos.x, 0, fireGroundPos.z * 0.65);
-      const airAssemblyApex = new THREE.Vector3(orbitCenterXZ.x, 3.35, orbitCenterXZ.z);
+      const airAssemblyApex = new THREE.Vector3(orbitCenterXZ.x, 3.15, orbitCenterXZ.z);
+      // 正对敌方“将（帅）”的统一正向朝向角，彻底杜绝建模车摆反！
+      const forwardYaw = Math.atan2(kPos.x - airAssemblyApex.x, kPos.z - airAssemblyApex.z);
 
       const rookMorphAura = this.createSmoothMorphAura(group, 0xfbbf24);
       const cannonMorphAura = this.createSmoothMorphAura(group, 0xef4444);
@@ -5885,51 +6612,11 @@ Object.assign(Xiangqi3DApp.prototype, {
       cannon.visible = false;
       group.add(chariot, cannon);
 
-      const combinedUnit = new THREE.Group();
-      combinedUnit.position.copy(airAssemblyApex);
-      this.faceTargetHorizontally(combinedUnit, kPos.x, kPos.z);
-      combinedUnit.visible = false;
-      group.add(combinedUnit);
-
-      const hull = new THREE.Mesh(new THREE.BoxGeometry(1.68, 0.46, 1.85), bronzeWoodMat);
-      hull.position.y = 0.46;
-      const armorPlating = new THREE.Mesh(new THREE.BoxGeometry(1.76, 0.32, 1.92), goldMat);
-      armorPlating.position.y = 0.52;
-      const frontRam = new THREE.Mesh(new THREE.ConeGeometry(0.45, 0.75, 4), goldGlowMat.clone());
-      frontRam.rotation.x = Math.PI / 2;
-      frontRam.position.set(0, 0.42, 1.25);
-      combinedUnit.add(hull, armorPlating, frontRam);
-
-      const combinedWheels = [];
-      [[-0.92, -0.58], [0.92, -0.58], [-0.92, 0.58], [0.92, 0.58]].forEach(([wx, wz]) => {
-        const wGroup = new THREE.Group();
-        wGroup.position.set(wx, 0.46, wz);
-        const tire = new THREE.Mesh(new THREE.TorusGeometry(0.44, 0.068, 12, 28), goldMat);
-        tire.rotation.y = Math.PI / 2;
-        const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, 0.26, 14), darkIronMat);
-        hub.rotation.z = Math.PI / 2;
-        wGroup.add(tire, hub);
-        combinedUnit.add(wGroup);
-        combinedWheels.push(wGroup);
-      });
-
-      const turretPivot = new THREE.Group();
-      turretPivot.position.set(0, 0.88, 0);
-      const turretBase = new THREE.Mesh(new THREE.CylinderGeometry(0.58, 0.68, 0.32, 20), crimsonLacquerMat);
-      turretPivot.add(turretBase);
-
-      [-0.32, 0.32].forEach(bx => {
-        const mainBarrel = new THREE.Mesh(new THREE.CylinderGeometry(0.20, 0.28, 2.15, 24), darkIronMat);
-        mainBarrel.rotation.x = Math.PI / 2;
-        mainBarrel.position.set(bx, 0.22, 0.35);
-        const muzzleCrown = new THREE.Mesh(new THREE.TorusGeometry(0.22, 0.05, 12, 24), goldGlowMat.clone());
-        muzzleCrown.position.set(bx, 0.22, 1.42);
-        const midBand = new THREE.Mesh(new THREE.TorusGeometry(0.25, 0.04, 10, 20), goldMat);
-        midBand.position.set(bx, 0.22, 0.45);
-        turretPivot.add(mainBarrel, muzzleCrown, midBand);
-      });
-      turretPivot.rotation.x = -0.24;
-      combinedUnit.add(turretPivot);
+      // 机械咬合锁定时的金色齿轮卡扣光环（非变身球）
+      const dockLockRing = new THREE.Mesh(new THREE.TorusGeometry(0.92, 0.045, 10, 32), goldGlowMat.clone());
+      dockLockRing.rotation.x = Math.PI / 2;
+      dockLockRing.visible = false;
+      group.add(dockLockRing);
 
       const superShell = new THREE.Group();
       const sCore = new THREE.Mesh(new THREE.SphereGeometry(0.36, 16, 16), goldGlowMat.clone());
@@ -5943,29 +6630,37 @@ Object.assign(Xiangqi3DApp.prototype, {
       const clampExplosion = create3DCannonExplosion(kPos, 1.38);
 
       return wrapUpdater((p, dt, fade = 1) => {
-        const cgWeight = smoothstep(0.02, 0.24, p) * (1 - smoothstep(0.56, 0.74, p)) * fade;
+        const cgWeight = smoothstep(0.02, 0.24, p) * (1 - smoothstep(0.58, 0.76, p)) * fade;
         vfxContext?.setSceneTransition?.(cgWeight);
         cgScene.setFade(cgWeight, dt, p);
 
         if (p < 0.36) {
+          // 阶段1 (0.00 -> 0.36): “车”与“炮”棋子螺旋升空变身为建模车与建模炮，并平滑过渡到上下预备拼装位（零位置跳变！）
           const orbT = p / 0.36;
-          const morphT = smoothstep(0.68, 1.0, orbT);
-          const curY = THREE.MathUtils.lerp(0.15, airAssemblyApex.y, smoothstep(0.0, 0.92, orbT));
-          const rad = THREE.MathUtils.lerp(2.45, 1.25, orbT);
-          const ang = orbT * Math.PI * 3.5;
+          const morphT = smoothstep(0.58, 0.95, orbT);
+          const alignToDock = smoothstep(0.68, 1.0, orbT);
+          const curY = THREE.MathUtils.lerp(0.15, airAssemblyApex.y, smoothstep(0.0, 0.88, orbT));
+          const rad = THREE.MathUtils.lerp(2.45, 0.95, orbT);
+          const ang = orbT * Math.PI * 3.0;
 
-          const rPt = new THREE.Vector3(
+          const orbitRPt = new THREE.Vector3(
             orbitCenterXZ.x + Math.cos(ang) * rad,
-            curY + Math.sin(ang * 2) * 0.28,
+            curY - 0.25,
             orbitCenterXZ.z + Math.sin(ang) * rad
           );
-          const cPt = new THREE.Vector3(
+          const orbitCPt = new THREE.Vector3(
             orbitCenterXZ.x + Math.cos(ang + Math.PI) * rad,
-            curY - Math.sin(ang * 2) * 0.28,
+            curY + 0.45,
             orbitCenterXZ.z + Math.sin(ang + Math.PI) * rad
           );
 
-          const pAlpha = 1 - smoothstep(0.20, 0.90, morphT);
+          // 预备拼装位：建模车在下 (apex.y - 0.35)，建模炮在上 (apex.y + 0.95)，两者 X/Z 已平滑对齐至 airAssemblyApex
+          const preDockRPt = new THREE.Vector3(airAssemblyApex.x, airAssemblyApex.y - 0.35, airAssemblyApex.z);
+          const preDockCPt = new THREE.Vector3(airAssemblyApex.x, airAssemblyApex.y + 0.95, airAssemblyApex.z);
+          const rPt = new THREE.Vector3().lerpVectors(orbitRPt, preDockRPt, alignToDock);
+          const cPt = new THREE.Vector3().lerpVectors(orbitCPt, preDockCPt, alignToDock);
+
+          const pAlpha = 1 - smoothstep(0.18, 0.88, morphT);
           if (rookItem?.mesh) {
             rookItem.customDriven = true;
             this.setPiece3DPose(
@@ -6001,94 +6696,85 @@ Object.assign(Xiangqi3DApp.prototype, {
           rookMorphAura.update(rPt, morphT, fade);
           cannonMorphAura.update(cPt, morphT, fade);
 
-          const mScale = smoothstep(0.15, 0.98, morphT) * 0.92 * fade;
+          const mScale = smoothstep(0.12, 0.95, morphT) * 1.05 * fade;
           chariot.visible = mScale > 0.02;
           chariot.position.copy(rPt);
-          this.faceTargetHorizontally(chariot, airAssemblyApex.x, airAssemblyApex.z);
+          // 建模车与建模炮统一朝向敌方“将（帅）”正前方 forwardYaw，绝不摆反！
+          chariot.rotation.set(0, forwardYaw, 0);
           chariot.scale.setScalar(mScale);
           chariot.userData.spinWheels(dt * 20, p * 4);
+          chariot.userData.setAssemblyTransform(0);
 
           cannon.visible = mScale > 0.02;
           cannon.position.copy(cPt);
-          this.faceTargetHorizontally(cannon, airAssemblyApex.x, airAssemblyApex.z);
+          cannon.rotation.set(0, forwardYaw, 0);
           cannon.scale.setScalar(mScale);
+          cannon.userData.setTurretTransform(0);
 
-          combinedUnit.visible = false;
+          dockLockRing.visible = false;
           superShell.visible = false;
-
-          if (vfxContext?.setCameraOverride) {
-            vfxContext.setCameraOverride(
-              new THREE.Vector3(orbitCenterXZ.x, curY * 0.75, orbitCenterXZ.z),
-              10.8,
-              0.92,
-              orbT * 0.35
-            );
-          }
         } else if (p < 0.56) {
+          // 阶段2 (0.36 -> 0.56): 建模车与建模炮在空中进行【机械变形】并【上下咬合拼装】！
           if (rookItem?.mesh) { rookItem.customDriven = true; rookItem.mesh.visible = false; }
           if (cannonItem?.mesh) { cannonItem.customDriven = true; cannonItem.mesh.visible = false; }
-
-          const dockT = smoothstep(0.36, 0.48, p);
-          const fuseDoneT = smoothstep(0.45, 0.56, p);
-
-          chariot.visible = fuseDoneT < 0.55;
-          chariot.position.set(
-            THREE.MathUtils.lerp(airAssemblyApex.x - 1.1, airAssemblyApex.x, dockT),
-            airAssemblyApex.y - 0.35 * (1 - dockT),
-            airAssemblyApex.z
-          );
-          chariot.scale.setScalar(0.95 * (1 - fuseDoneT) * fade);
-
-          cannon.visible = fuseDoneT < 0.55;
-          cannon.position.set(
-            THREE.MathUtils.lerp(airAssemblyApex.x + 1.1, airAssemblyApex.x, dockT),
-            airAssemblyApex.y + 0.55 * (1 - dockT),
-            airAssemblyApex.z
-          );
-          cannon.scale.setScalar(0.95 * (1 - fuseDoneT) * fade);
-
-          rookMorphAura.update(airAssemblyApex, Math.sin(fuseDoneT * Math.PI), fade);
+          rookMorphAura.update(airAssemblyApex, 0, 0);
           cannonMorphAura.update(airAssemblyApex, 0, 0);
 
-          combinedUnit.visible = fuseDoneT > 0.15;
-          combinedUnit.position.copy(airAssemblyApex);
-          const pop = fuseDoneT < 0.5
-            ? THREE.MathUtils.lerp(0.45, 1.24, fuseDoneT / 0.5)
-            : THREE.MathUtils.lerp(1.24, 1.10, (fuseDoneT - 0.5) / 0.5);
-          combinedUnit.scale.setScalar(pop * fade);
-          combinedWheels.forEach(w => { w.rotation.x += dt * 14; });
+          // 0.36 -> 0.48: 机械变形展开（战车华盖收起、底盘加宽、升起锁座；火炮四轮折叠收起、两侧滑出双联副炮管）
+          const mechMorphT = smoothstep(0.36, 0.47, p);
+          // 0.44 -> 0.55: 上下物理对接咬合（变形后的重炮炮塔从上方垂直落下，严丝合缝扣入战车顶座！）
+          const dockClampT = smoothstep(0.44, 0.55, p);
 
-          if (vfxContext?.setCameraOverride) {
-            vfxContext.setCameraOverride(airAssemblyApex.clone(), 9.4, 0.96, 0.25);
+          chariot.visible = true;
+          chariot.position.set(
+            airAssemblyApex.x,
+            THREE.MathUtils.lerp(airAssemblyApex.y - 0.35, airAssemblyApex.y, dockClampT),
+            airAssemblyApex.z
+          );
+          chariot.rotation.set(0, forwardYaw, 0);
+          chariot.scale.setScalar(1.08 * fade);
+          chariot.userData.setAssemblyTransform(mechMorphT);
+          chariot.userData.spinWheels(dt * 16, p * 5);
+
+          cannon.visible = true;
+          cannon.position.set(
+            airAssemblyApex.x,
+            THREE.MathUtils.lerp(airAssemblyApex.y + 0.95, airAssemblyApex.y + 0.58, dockClampT),
+            airAssemblyApex.z
+          );
+          cannon.rotation.set(0, forwardYaw, 0);
+          cannon.scale.setScalar(1.08 * fade);
+          cannon.userData.setTurretTransform(mechMorphT);
+
+          // 咬合瞬间激起金色机械锁扣光环
+          if (dockClampT > 0.1 && dockClampT < 0.98) {
+            dockLockRing.visible = true;
+            dockLockRing.position.set(airAssemblyApex.x, airAssemblyApex.y + 0.72, airAssemblyApex.z);
+            const env = Math.sin(dockClampT * Math.PI);
+            dockLockRing.scale.setScalar((0.75 + dockClampT * 1.15) * fade);
+            dockLockRing.material.opacity = env * 0.85 * fade;
+            if (dockClampT > 0.78 && dockClampT < 0.88) {
+              this.cameraShake = Math.max(this.cameraShake || 0, 0.22);
+            }
+          } else {
+            dockLockRing.visible = false;
           }
+          superShell.visible = false;
         } else {
-          chariot.visible = false;
-          cannon.visible = false;
-          rookMorphAura.update(airAssemblyApex, 0, 0);
-
+          // 阶段3 (0.56 -> 1.00): 拼装完成的【战车+重炮合体战车】保持一体下落至棋盘开火位，三管齐射轰击“将（帅）”！
+          dockLockRing.visible = false;
           const dropT = smoothstep(0.56, 0.72, p);
           const curUnitPos = new THREE.Vector3().lerpVectors(airAssemblyApex, fireGroundPos, dropT * dropT);
           const unitFadeOut = 1 - smoothstep(0.90, 0.99, p);
-          combinedUnit.visible = unitFadeOut > 0.02;
-          combinedUnit.position.copy(curUnitPos);
-          combinedUnit.scale.setScalar(1.10 * unitFadeOut * fade);
 
-          const pieceShow = smoothstep(0.58, 0.78, p);
-          if (rookItem?.mesh) {
-            rookItem.customDriven = true;
-            this.setPiece3DPose(rookItem.mesh, rookOrigin.x, 0, rookOrigin.z, 0, 0, 0, 1.0, pieceShow, 0);
-          }
-          if (cannonItem?.mesh && cannonItem !== rookItem) {
-            cannonItem.customDriven = true;
-            this.setPiece3DPose(cannonItem.mesh, cannonOrigin.x, 0, cannonOrigin.z, 0, 0, 0, 1.0, pieceShow, 0);
-          }
-
+          let recoilZ = 0;
+          let barrelPitch = -0.28;
           if (p >= 0.72) {
             const fireP = (p - 0.72) / 0.28;
             const shellFlight = Math.min(1, fireP / 0.42);
             const recoil = fireP < 0.28 ? Math.sin((fireP / 0.28) * Math.PI) * 0.45 : 0;
-            combinedUnit.position.z = fireGroundPos.z - dirSign * recoil;
-            turretPivot.rotation.x = -0.28 - recoil * 0.45;
+            recoilZ = -dirSign * recoil;
+            barrelPitch = -0.28 - recoil * 0.45;
 
             superShell.visible = shellFlight < 0.96;
             superShell.position.set(
@@ -6104,49 +6790,105 @@ Object.assign(Xiangqi3DApp.prototype, {
               clampExplosion.update.call(this, hitP, fade, kPos);
               applyKingHitFeedback(hitP, 'cannon_blast', 0, dirSign);
             }
+          } else {
+            superShell.visible = false;
           }
 
-          if (vfxContext?.setCameraOverride) {
-            vfxContext.setCameraOverride(
-              new THREE.Vector3(kPos.x, 0.68, THREE.MathUtils.lerp(curUnitPos.z, kPos.z, 0.5)),
-              10.2,
-              0.92,
-              0.15
-            );
+          chariot.visible = unitFadeOut > 0.02;
+          chariot.position.set(curUnitPos.x, curUnitPos.y, curUnitPos.z + recoilZ);
+          chariot.rotation.set(0, forwardYaw, 0);
+          chariot.scale.setScalar(1.08 * unitFadeOut * fade);
+          chariot.userData.setAssemblyTransform(1.0);
+          chariot.userData.spinWheels(dt * 12, p * 5);
+
+          cannon.visible = unitFadeOut > 0.02;
+          cannon.position.set(curUnitPos.x, curUnitPos.y + 0.58 * unitFadeOut, curUnitPos.z + recoilZ * 1.25);
+          cannon.rotation.set(0, forwardYaw, 0);
+          cannon.scale.setScalar(1.08 * unitFadeOut * fade);
+          cannon.userData.setTurretTransform(1.0);
+          cannon.userData.barrelPivot.rotation.x = barrelPitch;
+
+          const pieceShow = smoothstep(0.60, 0.80, p);
+          if (rookItem?.mesh) {
+            rookItem.customDriven = true;
+            this.setPiece3DPose(rookItem.mesh, rookOrigin.x, 0, rookOrigin.z, 0, 0, 0, 1.0, pieceShow, 0);
           }
+          if (cannonItem?.mesh && cannonItem !== rookItem) {
+            cannonItem.customDriven = true;
+            this.setPiece3DPose(cannonItem.mesh, cannonOrigin.x, 0, cannonOrigin.z, 0, 0, 0, 1.0, pieceShow, 0);
+          }
+        }
+
+        // 全程单一连续平滑运镜函数，彻底消除 p=0.36 与 p=0.56 处的镜头回退抖动！
+        if (vfxContext?.setCameraOverride) {
+          const riseFocus = smoothstep(0.0, 0.36, p);
+          const dropFocus = smoothstep(0.56, 0.74, p);
+          const camY = THREE.MathUtils.lerp(
+            THREE.MathUtils.lerp(0.65, airAssemblyApex.y + 0.25, riseFocus),
+            0.72,
+            dropFocus
+          );
+          const camZ = THREE.MathUtils.lerp(
+            orbitCenterXZ.z,
+            THREE.MathUtils.lerp(airAssemblyApex.z, kPos.z, 0.5),
+            dropFocus
+          );
+          const camRad = THREE.MathUtils.lerp(
+            THREE.MathUtils.lerp(11.0, 9.6, riseFocus),
+            10.4,
+            dropFocus
+          );
+          const camTheta = THREE.MathUtils.lerp(
+            riseFocus * 0.28,
+            0.16,
+            dropFocus
+          );
+          vfxContext.setCameraOverride(
+            new THREE.Vector3(kPos.x, camY, camZ),
+            camRad,
+            0.92,
+            camTheta
+          );
         }
       });
     }
 
     // =========================================================================
     // 13. 加强卧槽马 (Trough Horse):
-    // “将（帅）”和另一枚助战棋子飞起来在空中正面对峙（激起交锋电光火花），
-    // 同时“马”棋子绕着这两个对峙的棋子螺旋盘旋飞起来，
-    // 然后“马”在空中平滑变身成精雕 3D 建模马，咆哮疾冲把对峙中的“将（帅）”直接撞飞！
+    // 修复对峙时“将（帅）”没能正常显示的问题：
+    // 1. 将空中对峙的“将（帅）”与助战棋子正面朝向镜头倾斜立起 (rx = Math.PI * 0.38)，使棋子字面清晰朝向观众（而非侧刃对镜头）；
+    // 2. 为对峙中的“将（帅）”配备专属赤金背光护盾环，并赋予高优先级 renderOrder = 25，确保对峙全程清晰醒目！
     // =========================================================================
     if (vfxType === 'trough_horse') {
       const cgScene = this.createCGSceneEnvironment('cg_battlefield', group);
       const horseItem = findAttackerItemByType('n', null) || attackerItems[0];
       const partnerItem = findAttackerItemByType('r', horseItem)
         || findAttackerItemByType('c', horseItem)
-        || attackerItems.find(it => it !== horseItem)
+        || attackerItems.find((it) => it !== horseItem)
+        || findFriendlyGeneralItem()
         || horseItem;
 
       const horseOrigin = horseItem?.basePos ? horseItem.basePos.clone() : new THREE.Vector3(cPos.x, 0, cPos.z);
       const partnerOrigin = partnerItem?.basePos ? partnerItem.basePos.clone() : new THREE.Vector3(kPos.x + 2.0, 0, kPos.z + 2.0);
 
-      // 空中对峙点：“将（帅）”在左 (-1.28, 2.25, 0)，助战棋子在右 (+1.28, 2.25, 0)
-      const kingStandoffPos = new THREE.Vector3(-1.28, 2.25, 0);
-      const partnerStandoffPos = new THREE.Vector3(1.28, 2.25, 0);
-      const horseTransformPos = new THREE.Vector3(3.45, 2.35, 0);
+      // 空中对峙点：“将（帅）”在左 (-1.38, 2.25, 0.2)，助战棋子在右 (+1.38, 2.25, 0.2)
+      const kingStandoffPos = new THREE.Vector3(-1.38, 2.25, 0.2);
+      const partnerStandoffPos = new THREE.Vector3(1.38, 2.25, 0.2);
+      const horseTransformPos = new THREE.Vector3(3.55, 2.35, 0.2);
 
-      // 对峙双子之间的雷霆气场电弧与能量核
+      // 为对峙双子各自增加醒目的战气背光圆环，衬托黑色“將”或红色“帥”在空中清晰夺目
+      const kingBackHalo = new THREE.Mesh(new THREE.RingGeometry(0.62, 0.92, 32), crimsonGlowMat.clone());
+      const partnerBackHalo = new THREE.Mesh(new THREE.RingGeometry(0.62, 0.92, 32), goldGlowMat.clone());
+      kingBackHalo.visible = false;
+      partnerBackHalo.visible = false;
+      group.add(kingBackHalo, partnerBackHalo);
+
       const clashEnergyGroup = new THREE.Group();
-      clashEnergyGroup.position.set(0, 2.25, 0);
-      const clashCore = new THREE.Mesh(new THREE.OctahedronGeometry(0.26, 1), goldGlowMat.clone());
-      const clashRing = new THREE.Mesh(new THREE.TorusGeometry(0.55, 0.04, 10, 28), crimsonGlowMat.clone());
+      clashEnergyGroup.position.set(0, 2.25, 0.2);
+      const clashCore = new THREE.Mesh(new THREE.OctahedronGeometry(0.24, 1), goldGlowMat.clone());
+      const clashRing = new THREE.Mesh(new THREE.TorusGeometry(0.48, 0.038, 10, 28), crimsonGlowMat.clone());
       clashRing.rotation.y = Math.PI / 2;
-      const clashBeam = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 2.2, 10), goldGlowMat.clone());
+      const clashBeam = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 1.45, 10), goldGlowMat.clone());
       clashBeam.rotation.z = Math.PI / 2;
       clashEnergyGroup.add(clashCore, clashRing, clashBeam);
       clashEnergyGroup.visible = false;
@@ -6166,29 +6908,34 @@ Object.assign(Xiangqi3DApp.prototype, {
 
         const standoffInT = smoothstep(0.0, 0.22, p);
         const returnBoardT = smoothstep(0.84, 0.98, p);
+        const activeStandoff = standoffInT * (1 - returnBoardT);
 
-        // 1. 另一枚助战棋子飞至右侧对峙点 (partnerStandoffPos) 与“将（帅）”交锋对峙，尾声归位
+        // 1. 另一枚助战棋子飞至右侧对峙点，字面朝向观众倾斜 (rx = Math.PI * 0.38) 并朝左微倾与“将（帅）”正面对峙！
         if (partnerItem?.mesh && partnerItem !== horseItem) {
           partnerItem.customDriven = true;
-          const pCur = new THREE.Vector3().lerpVectors(partnerOrigin, partnerStandoffPos, standoffInT * (1 - returnBoardT));
+          const pCur = new THREE.Vector3().lerpVectors(partnerOrigin, partnerStandoffPos, activeStandoff);
           const tremor = (p > 0.18 && p < 0.65) ? Math.sin(p * 85) * 0.06 : 0;
-          const sc = THREE.MathUtils.lerp(1.0, 1.62, standoffInT * (1 - returnBoardT));
+          const sc = THREE.MathUtils.lerp(1.0, 1.68, activeStandoff);
           this.setPiece3DPose(
             partnerItem.mesh,
             pCur.x + tremor,
             pCur.y,
             pCur.z,
-            0,
-            0,
-            standoffInT * (1 - returnBoardT) * (Math.PI * 0.42),
+            activeStandoff * (Math.PI * 0.38),
+            -activeStandoff * 0.28,
+            activeStandoff * 0.16,
             sc,
             1.0,
-            standoffInT * (1 - returnBoardT) * 0.68,
+            activeStandoff * 0.72,
             0xfbbf24
           );
+          partnerBackHalo.visible = p > 0.12 && p < 0.84;
+          partnerBackHalo.position.set(pCur.x + tremor, pCur.y + 0.2, pCur.z - 0.15);
+          partnerBackHalo.scale.setScalar((0.9 + Math.sin(p * 32) * 0.12) * fade);
+        } else {
+          partnerBackHalo.visible = false;
         }
 
-        // 对峙气场光束
         if (p > 0.16 && p < 0.65) {
           clashEnergyGroup.visible = true;
           const pulse = 0.85 + Math.sin(p * 48) * 0.25;
@@ -6199,18 +6946,17 @@ Object.assign(Xiangqi3DApp.prototype, {
           clashEnergyGroup.visible = false;
         }
 
-        // 2. “马”棋子绕着空中对峙的两枚棋子螺旋盘旋飞升 (0.00 -> 0.44) -> 变身为 3D 建模马 (0.44 -> 0.56) -> 疾冲撞飞“将（帅）” (0.56 -> 0.84)
+        // 2. “马”棋子绕着对峙双子螺旋盘旋飞升 -> 变身为 3D 建模马 -> 疾冲撞飞“将（帅）”
         if (p < 0.56) {
           const orbitT = smoothstep(0.04, 0.46, p);
           const morphT = smoothstep(0.42, 0.56, p);
-          // 围绕对峙双子 (0, 2.25, 0) 的 3D 螺旋轨道
           const ang = orbitT * Math.PI * 4.0;
-          const rx = 2.85 + Math.sin(orbitT * Math.PI) * 0.55;
-          const rz = 1.95;
+          const rx = 2.95 + Math.sin(orbitT * Math.PI) * 0.55;
+          const rz = 2.05;
           const orbitPt = new THREE.Vector3(
             Math.cos(ang) * rx,
             THREE.MathUtils.lerp(0.25, 2.35, orbitT) + Math.sin(ang * 2) * 0.35,
-            Math.sin(ang) * rz
+            Math.sin(ang) * rz + 0.2
           );
           const curHPt = new THREE.Vector3().lerpVectors(horseOrigin, orbitPt, smoothstep(0.0, 0.18, p));
           curHPt.lerp(horseTransformPos, morphT);
@@ -6237,19 +6983,19 @@ Object.assign(Xiangqi3DApp.prototype, {
           troughHorse.visible = mScale > 0.02;
           troughHorse.position.copy(curHPt);
           this.faceTargetHorizontally(troughHorse, kingStandoffPos.x, kingStandoffPos.z);
-          troughHorse.userData.animateGallop(p * 5, morphT * 0.72);
+          troughHorse.userData.animateGallop(p * 5, morphT * 0.72, 1.35);
           troughHorse.scale.setScalar(mScale);
         } else if (p < 0.84) {
           horseMorphAura.update(horseTransformPos, 0, 0);
           if (horseItem?.mesh) { horseItem.customDriven = true; horseItem.mesh.visible = false; }
 
           const chargeT = smoothstep(0.56, 0.72, p);
-          const chargeEnd = new THREE.Vector3(-2.15, 2.15, 0);
+          const chargeEnd = new THREE.Vector3(-2.15, 2.15, 0.2);
           troughHorse.visible = true;
           troughHorse.position.lerpVectors(horseTransformPos, chargeEnd, chargeT);
           troughHorse.position.y += Math.sin(chargeT * Math.PI) * 0.65;
           this.faceTargetHorizontally(troughHorse, chargeEnd.x - 1, chargeEnd.z);
-          troughHorse.userData.animateGallop(p * 6.5, chargeT > 0.4 && chargeT < 0.8 ? 0.65 : 0.25);
+          troughHorse.userData.animateGallop(p * 6.5, chargeT > 0.4 && chargeT < 0.8 ? 0.65 : 0.25, 1.45);
           troughHorse.scale.setScalar(1.25 * fade);
         } else {
           const backT = smoothstep(0.84, 0.98, p);
@@ -6257,12 +7003,12 @@ Object.assign(Xiangqi3DApp.prototype, {
           troughHorse.scale.setScalar(1.22 * (1 - backT) * fade);
           if (horseItem?.mesh) {
             horseItem.customDriven = true;
-            const hp = new THREE.Vector3().lerpVectors(new THREE.Vector3(-2.15, 2.15, 0), horseOrigin, backT);
+            const hp = new THREE.Vector3().lerpVectors(new THREE.Vector3(-2.15, 2.15, 0.2), horseOrigin, backT);
             this.setPiece3DPose(horseItem.mesh, hp.x, hp.y, hp.z, 0, 0, 0, THREE.MathUtils.lerp(1.3, 1.0, backT), backT, 0);
           }
         }
 
-        // 3. “将（帅）”在空中左端对峙，p=0.66 被疾冲而来的建模马迎面撞飞出去！
+        // 3. “将（帅）”在空中左端对峙（正面朝向观众立起 rx = Math.PI * 0.38，配赤金背光环确保 100% 清晰可见），p=0.65 被建模马迎面撞飞！
         if (kingItem?.mesh) {
           kingItem.customDriven = true;
           if (p < 0.65) {
@@ -6273,16 +7019,19 @@ Object.assign(Xiangqi3DApp.prototype, {
               kCur.x - tremor,
               kCur.y,
               kCur.z,
-              0,
-              0,
-              -standoffInT * (Math.PI * 0.42),
-              THREE.MathUtils.lerp(1.0, 1.62, standoffInT),
+              standoffInT * (Math.PI * 0.38),
+              standoffInT * 0.28,
+              -standoffInT * 0.16,
+              THREE.MathUtils.lerp(1.0, 1.68, standoffInT),
               1.0,
-              standoffInT * 0.55,
+              standoffInT * 0.75,
               0xef4444
             );
+            kingBackHalo.visible = p > 0.10;
+            kingBackHalo.position.set(kCur.x - tremor, kCur.y + 0.2, kCur.z - 0.15);
+            kingBackHalo.scale.setScalar((0.95 + Math.cos(p * 32) * 0.12) * fade);
           } else if (p < 0.85) {
-            // 被建模马猛烈撞飞（沿抛物线向远空翻滚飞出！）
+            kingBackHalo.visible = false;
             const flyOutT = (p - 0.65) / 0.20;
             ramImpactExplosion.update.call(this, flyOutT, fade, kingStandoffPos);
             const kx = THREE.MathUtils.lerp(kingStandoffPos.x, -6.8, flyOutT);
@@ -6296,12 +7045,13 @@ Object.assign(Xiangqi3DApp.prototype, {
               flyOutT * Math.PI * 5,
               flyOutT * Math.PI * 4,
               flyOutT * Math.PI * 3,
-              1.62 * (1 - flyOutT * 0.25),
+              1.68 * (1 - flyOutT * 0.25),
               1.0,
               0.90,
               0xef4444
             );
           } else {
+            kingBackHalo.visible = false;
             const backT = smoothstep(0.85, 0.98, p);
             const kx = THREE.MathUtils.lerp(-6.8, kPos.x, backT);
             const kz = THREE.MathUtils.lerp(-2.6, kPos.z, backT);
@@ -6323,10 +7073,10 @@ Object.assign(Xiangqi3DApp.prototype, {
 
         if (vfxContext?.setCameraOverride) {
           vfxContext.setCameraOverride(
-            new THREE.Vector3(p > 0.65 && p < 0.84 ? -1.8 : 0, 2.05, 0),
+            new THREE.Vector3(p > 0.65 && p < 0.84 ? -1.8 : 0, 2.05, 0.2),
             11.4,
-            0.92,
-            Math.sin(p * Math.PI) * 0.24
+            0.90,
+            Math.sin(p * Math.PI) * 0.18
           );
         }
       });
@@ -6334,11 +7084,6 @@ Object.assign(Xiangqi3DApp.prototype, {
 
     // =========================================================================
     // 14. 加强闷杀 (Smothered Kill):
-    // 闷杀“将（帅）”的棋子腾空而起，变身成为现有的这个带链狼牙铁球缓慢下落（精准卡好落地时机）；
-    // 然后把镜头对着“将（帅）”，“将（帅）”尝试躲开铁球，
-    // 但是闷着“将（帅）”的棋子开始变身成为现有的这个玄铁栏杆拦住了“将（帅）”，
-    // “将（帅）”在其中弹了几下，铁球落下来一击砸中“将（帅）”！
-    // =========================================================================
     if (vfxType === 'smothered_kill') {
       const cgScene = this.createCGSceneEnvironment('cg_imperial_citadel', group);
       const centerStage = new THREE.Vector3(0, 0.02, 0);
@@ -6655,213 +7400,792 @@ Object.assign(Xiangqi3DApp.prototype, {
     // 产生惊天大爆炸后平滑切回终局场地！
     // =========================================================================
     if (vfxType === 'heaven_earth_cannon') {
+      // 初始草地地图 (Map A: cg_grassland)
       const cgScene = this.createCGSceneEnvironment('cg_grassland', group, { withScorchEarth: true });
       const centerStage = new THREE.Vector3(0, 0.02, 0);
 
+      const cannonItem0 = findAttackerItemByType('c', null) || attackerItems[0];
+      const cannonItem1 = findAttackerItemByType('c', cannonItem0) || attackerItems.find((it) => it !== cannonItem0) || cannonItem0;
+      const cStart0 = cannonItem0?.basePos ? cannonItem0.basePos.clone() : new THREE.Vector3(-2.2, 0, 2.5);
+      const cStart1 = cannonItem1?.basePos && cannonItem1 !== cannonItem0
+        ? cannonItem1.basePos.clone()
+        : new THREE.Vector3(2.2, 0, -2.5);
+
+      // =======================================================================
+      // 另一张完整地图：炼狱熔岩焦土巨景地图 (Map B: lavaWorldMapGroup)
+      // 在镜头仰视高空太阳融合为熔岩球刚开始下落时 (p = 0.35)，趁镜头对着天空将整个地面无感切换为此熔岩地图！
+      // =======================================================================
+      const lavaWorldMapGroup = new THREE.Group();
+      lavaWorldMapGroup.visible = false;
+      lavaWorldMapGroup.renderOrder = -12;
+      group.add(lavaWorldMapGroup);
+
+      // 生成高精度熔岩球表面与熔岩大地纹理
+      const createMagmaSphereTexture = () => {
+        const c = document.createElement('canvas');
+        c.width = 512;
+        c.height = 512;
+        const ctx = c.getContext('2d');
+        const bg = ctx.createLinearGradient(0, 0, 512, 512);
+        bg.addColorStop(0.0, '#7f1d1d');
+        bg.addColorStop(0.35, '#dc2626');
+        bg.addColorStop(0.70, '#ea580c');
+        bg.addColorStop(1.0, '#450a0a');
+        ctx.fillStyle = bg;
+        ctx.fillRect(0, 0, 512, 512);
+
+        // 暗黑玄武岩冷却浮壳斑块
+        ctx.fillStyle = 'rgba(28, 10, 6, 0.72)';
+        for (let i = 0; i < 42; i++) {
+          const rx = (i * 97) % 512;
+          const ry = (i * 151) % 512;
+          const rw = 24 + (i % 5) * 18;
+          const rh = 16 + (i % 4) * 14;
+          ctx.beginPath();
+          ctx.ellipse(rx, ry, rw, rh, (i % 6) * 0.5, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        // 炽白金黄的纵横岩浆裂谷脉络
+        ctx.strokeStyle = '#fef08a';
+        ctx.shadowColor = '#f97316';
+        ctx.shadowBlur = 12;
+        for (let l = 0; l < 28; l++) {
+          ctx.lineWidth = 2.5 + (l % 3) * 2.0;
+          ctx.beginPath();
+          let lx = (l * 67) % 512;
+          let ly = (l * 43) % 512;
+          ctx.moveTo(lx, ly);
+          for (let s = 0; s < 5; s++) {
+            lx += Math.cos(l + s * 1.3) * 48;
+            ly += Math.sin(l * 0.7 + s * 1.7) * 48;
+            ctx.lineTo(lx, ly);
+          }
+          ctx.stroke();
+        }
+        return new THREE.CanvasTexture(c);
+      };
+      const magmaSphereTex = createMagmaSphereTexture();
+
+      const lavaBasaltMat = new THREE.MeshStandardMaterial({
+        color: 0x1c0a06,
+        emissive: 0x450a0a,
+        emissiveIntensity: 0.35,
+        roughness: 0.85,
+        metalness: 0.15
+      });
+      const lavaMagmaRiverMat = new THREE.MeshBasicMaterial({
+        map: magmaSphereTex,
+        color: 0xffedd5,
+        side: THREE.DoubleSide
+      });
+      const lavaGlowPoolMat = new THREE.MeshBasicMaterial({
+        color: 0xf97316,
+        blending: THREE.AdditiveBlending,
+        side: THREE.DoubleSide,
+        depthWrite: false
+      });
+
+      const lavaFloorBase = new THREE.Mesh(new THREE.CylinderGeometry(54, 54, 0.4, 64), lavaBasaltMat);
+      lavaFloorBase.position.y = -0.20;
+      lavaFloorBase.renderOrder = -14;
+      const lavaRiverOverlay = new THREE.Mesh(new THREE.CircleGeometry(38, 64), lavaMagmaRiverMat);
+      lavaRiverOverlay.rotation.x = -Math.PI / 2;
+      lavaRiverOverlay.position.y = 0.008;
+      lavaRiverOverlay.renderOrder = -12;
+      lavaWorldMapGroup.add(lavaFloorBase, lavaRiverOverlay);
+
+      // 熔岩地图四周的破碎黑曜石火山群峰与翘起地壳岩板
+      for (let i = 0; i < 20; i++) {
+        const a = (i / 20) * Math.PI * 2;
+        const r = 4.2 + (i % 3) * 3.8;
+        const slab = new THREE.Mesh(
+          new THREE.BoxGeometry(1.6 + (i % 3) * 0.8, 0.35, 1.4 + (i % 2) * 0.9),
+          lavaBasaltMat
+        );
+        slab.position.set(Math.cos(a) * r, 0.08, Math.sin(a) * r);
+        slab.rotation.y = -a;
+        slab.rotation.x = -0.18 - (i % 3) * 0.08;
+        slab.renderOrder = -10;
+        lavaWorldMapGroup.add(slab);
+      }
+      for (let m = 0; m < 14; m++) {
+        const ma = (m / 14) * Math.PI * 2 + 0.12;
+        const mr = 22.0 + (m % 2) * 4.5;
+        const mh = 8.5 + (m % 4) * 3.0;
+        const volcano = new THREE.Mesh(new THREE.ConeGeometry(5.8, mh, 7), lavaBasaltMat);
+        volcano.position.set(Math.cos(ma) * mr, mh * 0.45, Math.sin(ma) * mr);
+        volcano.renderOrder = -12;
+        const craterGlow = new THREE.Mesh(new THREE.ConeGeometry(1.8, 2.2, 7), lavaGlowPoolMat);
+        craterGlow.position.set(Math.cos(ma) * mr, mh * 0.88, Math.sin(ma) * mr);
+        lavaWorldMapGroup.add(volcano, craterGlow);
+      }
+
+      // =======================================================================
+      // 太阳与巨大熔岩球总成 (giantSunGroup: 初始为纯白耀眼太阳 -> 融合两“炮”后化为几乎覆盖全屏的巨大熔岩球)
+      // =======================================================================
+      const sunStartApex = new THREE.Vector3(0, 17.5, 0);
       const giantSunGroup = new THREE.Group();
-      const sunStartApex = new THREE.Vector3(0, 13.8, 0);
       giantSunGroup.position.copy(sunStartApex);
       group.add(giantSunGroup);
 
-      const sunCore = new THREE.Mesh(
-        new THREE.SphereGeometry(2.15, 36, 36),
-        new THREE.MeshBasicMaterial({ color: 0xfffbeb, transparent: true, opacity: 0.96 })
-      );
-      const sunPhotosphere = new THREE.Mesh(
-        new THREE.SphereGeometry(2.50, 36, 36),
-        new THREE.MeshBasicMaterial({
-          color: 0xf97316,
-          transparent: true,
-          opacity: 0.78,
-          blending: THREE.AdditiveBlending,
-          depthWrite: false
-        })
-      );
-      const sunCoronaOuter = new THREE.Mesh(
-        new THREE.SphereGeometry(3.0, 28, 28),
-        new THREE.MeshBasicMaterial({
-          color: 0xef4444,
-          transparent: true,
-          opacity: 0.48,
-          blending: THREE.AdditiveBlending,
-          depthWrite: false
-        })
-      );
-      const coronaRing1 = new THREE.Mesh(new THREE.TorusGeometry(2.88, 0.14, 12, 48), goldGlowMat.clone());
-      const coronaRing2 = new THREE.Mesh(new THREE.TorusGeometry(3.28, 0.10, 12, 48), crimsonGlowMat.clone());
-      coronaRing2.rotation.x = Math.PI / 2;
-      giantSunGroup.add(sunCore, sunPhotosphere, sunCoronaOuter, coronaRing1, coronaRing2);
+      // 初始白色太阳层 (whiteSunCore + whiteSunHalo)
+      const whiteSunCoreMat = new THREE.MeshBasicMaterial({
+        color: 0xffffff,
+        transparent: true,
+        opacity: 1.0
+      });
+      const whiteSunHaloMat = new THREE.MeshBasicMaterial({
+        color: 0xfffbeb,
+        transparent: true,
+        opacity: 0.78,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false
+      });
+      const whiteSunCore = new THREE.Mesh(new THREE.SphereGeometry(5.6, 48, 48), whiteSunCoreMat);
+      const whiteSunHalo = new THREE.Mesh(new THREE.SphereGeometry(6.6, 40, 40), whiteSunHaloMat);
+      giantSunGroup.add(whiteSunCore, whiteSunHalo);
 
-      for (let i = 0; i < 14; i++) {
-        const a = (i / 14) * Math.PI * 2;
-        const flare = new THREE.Mesh(
-          new THREE.ConeGeometry(0.46, 1.75, 6),
-          i % 2 === 0 ? goldGlowMat.clone() : crimsonGlowMat.clone()
-        );
-        flare.position.set(Math.cos(a) * 2.58, Math.sin(a) * 2.58, 0);
-        flare.rotation.z = a - Math.PI / 2;
-        giantSunGroup.add(flare);
+      // 转化后的几乎覆盖全屏的巨大熔岩球层 (lavaSphereCore + lavaCrustMesh + lavaCoronaMesh)
+      const lavaSphereCoreMat = new THREE.MeshBasicMaterial({
+        map: magmaSphereTex,
+        color: 0xffedd5,
+        transparent: true,
+        opacity: 0.0
+      });
+      const lavaCrustWireMat = new THREE.MeshBasicMaterial({
+        color: 0xfef08a,
+        wireframe: true,
+        transparent: true,
+        opacity: 0.0,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false
+      });
+      const lavaCoronaMat = new THREE.MeshBasicMaterial({
+        color: 0xea580c,
+        transparent: true,
+        opacity: 0.0,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false
+      });
+      const lavaSphereCore = new THREE.Mesh(new THREE.SphereGeometry(5.85, 48, 48), lavaSphereCoreMat);
+      const lavaCrustWire = new THREE.Mesh(new THREE.IcosahedronGeometry(5.96, 3), lavaCrustWireMat);
+      const lavaCoronaMesh = new THREE.Mesh(new THREE.SphereGeometry(6.85, 40, 40), lavaCoronaMat);
+      giantSunGroup.add(lavaSphereCore, lavaCrustWire, lavaCoronaMesh);
+
+      // 熔岩球表面的凹凸熔岩山脉隆起块
+      const lavaSurfaceBumps = [];
+      for (let b = 0; b < 24; b++) {
+        const phiB = Math.acos(1 - (2 * (b + 0.5)) / 24);
+        const thetaB = Math.PI * (1 + Math.sqrt(5)) * b;
+        const dirV = new THREE.Vector3(
+          Math.sin(phiB) * Math.cos(thetaB),
+          Math.cos(phiB),
+          Math.sin(phiB) * Math.sin(thetaB)
+        ).normalize();
+        const bump = new THREE.Mesh(new THREE.DodecahedronGeometry(0.95, 1), lavaSphereCoreMat);
+        bump.position.copy(dirV).multiplyScalar(5.45);
+        giantSunGroup.add(bump);
+        lavaSurfaceBumps.push(bump);
       }
 
-      const solarSupernovaExplosion = create3DCannonExplosion(centerStage, 2.35);
+      // =======================================================================
+      // 环绕并半遮挡白色太阳的 20 团立体云层 (wreathedClouds)
+      // 在熔岩球下坠时向四周慢慢驱散，且紧贴的云朵与全部云层逐渐由纯白变为火红熔岩色！
+      // =======================================================================
+      const wreathedClouds = [];
+      for (let c = 0; c < 20; c++) {
+        const cMat = new THREE.MeshStandardMaterial({
+          color: 0xffffff,
+          emissive: 0x334155,
+          emissiveIntensity: 0.18,
+          roughness: 0.88,
+          transparent: true,
+          opacity: 0.90,
+          depthWrite: false
+        });
+        const cGrp = new THREE.Group();
+        const puffCount = 5;
+        for (let pf = 0; pf < puffCount; pf++) {
+          const puff = new THREE.Mesh(
+            new THREE.SphereGeometry(1.15 - (pf % 2) * 0.25, 16, 14),
+            cMat
+          );
+          puff.scale.set(1.55, 0.58, 1.25);
+          puff.position.set(
+            (pf - 2) * 0.85,
+            (pf % 2) * 0.22,
+            ((pf + 1) % 2) * 0.45
+          );
+          cGrp.add(puff);
+        }
+        // 前 8 团云紧贴太阳下方与周围遮挡，后 12 团环绕成高空云海层 (y ≈ 9.2..14.5)
+        const isInnerWreath = c < 8;
+        const baseAngle = (c / (isInnerWreath ? 8 : 12)) * Math.PI * 2 + (isInnerWreath ? 0.2 : 0.5);
+        const baseRad = isInnerWreath ? (2.2 + (c % 3) * 1.4) : (6.0 + (c % 3) * 2.6);
+        const baseY = isInnerWreath ? (12.8 + (c % 3) * 0.8) : (9.2 + (c % 2) * 1.1);
+        cGrp.position.set(Math.cos(baseAngle) * baseRad, baseY, Math.sin(baseAngle) * baseRad);
+        cGrp.rotation.y = -baseAngle;
+        group.add(cGrp);
+        wreathedClouds.push({ cGrp, cMat, isInnerWreath, baseAngle, baseRad, baseY, idx: c });
+      }
+
+      // =======================================================================
+      // 周围从缓慢逐渐加速下坠的熔岩石头碎片群 (fallingLavaRocks)
+      // + 1 颗穿过屏幕正中心的大号特写熔岩碎片 (heroCenterFragment)
+      // + 1 颗从空中砸向镜头前方引发瞬间遮蔽全屏爆炸的特写碎片 (screenBlockerFragment)
+      // =======================================================================
+      const rockCragMat = new THREE.MeshStandardMaterial({
+        color: 0x270e04,
+        emissive: 0xea580c,
+        emissiveIntensity: 0.72,
+        roughness: 0.65
+      });
+      const rockFlameWakeMat = new THREE.MeshBasicMaterial({
+        color: 0xf97316,
+        transparent: true,
+        opacity: 0.75,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false
+      });
+
+      const makeMeteorRock = (radius = 0.38) => {
+        const rg = new THREE.Group();
+        const core = new THREE.Mesh(new THREE.DodecahedronGeometry(radius, 1), rockCragMat);
+        core.scale.set(1.2, 0.88, 1.05);
+        const glowShell = new THREE.Mesh(new THREE.IcosahedronGeometry(radius * 1.06, 0), goldGlowMat.clone());
+        glowShell.material.wireframe = true;
+        const wakeCone = new THREE.Mesh(new THREE.ConeGeometry(radius * 0.85, radius * 3.2, 10), rockFlameWakeMat);
+        wakeCone.position.y = radius * 1.5;
+        rg.add(core, glowShell, wakeCone);
+        rg.visible = false;
+        group.add(rg);
+        return rg;
+      };
+
+      const fallingLavaRocks = Array.from({ length: 26 }, (_, i) => {
+        const ang = (i / 26) * Math.PI * 2 + (i % 3) * 0.25;
+        const rad = 1.6 + (i % 6) * 1.45;
+        const startT = 0.40 + (i % 8) * 0.032;
+        const dur = 0.16 + (i % 3) * 0.03;
+        const mesh = makeMeteorRock(0.26 + (i % 3) * 0.10);
+        return {
+          mesh,
+          x: Math.cos(ang) * rad,
+          z: Math.sin(ang) * rad,
+          startY: 14.5 + (i % 4) * 1.5,
+          startT,
+          dur,
+          idx: i
+        };
+      });
+
+      // 穿过屏幕正中心的大号特写熔岩碎片 (heroCenterFragment)
+      const heroCenterFragment = makeMeteorRock(0.72);
+      heroCenterFragment.renderOrder = 30;
+
+      // 砸向镜头正前方引发遮蔽全屏爆炸的特写碎片 (screenBlockerFragment) 与全屏遮挡爆炸球
+      const screenBlockerFragment = makeMeteorRock(0.85);
+      screenBlockerFragment.renderOrder = 32;
+      const screenBlockerExplosionGroup = new THREE.Group();
+      screenBlockerExplosionGroup.visible = false;
+      screenBlockerExplosionGroup.renderOrder = 35;
+      const blockerFlashCore = new THREE.Mesh(
+        new THREE.SphereGeometry(2.8, 24, 24),
+        new THREE.MeshBasicMaterial({ color: 0xfff7ed, transparent: true, opacity: 0, depthTest: false })
+      );
+      const blockerFireShell = new THREE.Mesh(
+        new THREE.SphereGeometry(3.8, 24, 24),
+        new THREE.MeshBasicMaterial({ color: 0xea580c, transparent: true, opacity: 0, depthTest: false })
+      );
+      screenBlockerExplosionGroup.add(blockerFireShell, blockerFlashCore);
+      group.add(screenBlockerExplosionGroup);
+
+      // 地面受碎片撞击及最后熔岩球压境时掀起的 48 颗弹飞小石子 (groundPebbles)
+      const groundPebbles = Array.from({ length: 48 }, (_, i) => {
+        const a = (i / 48) * Math.PI * 2 + (i % 5) * 0.14;
+        const dist = 0.45 + (i % 8) * 0.72;
+        const peb = new THREE.Mesh(
+          new THREE.DodecahedronGeometry(0.08 + (i % 4) * 0.045, 0),
+          i % 3 === 0 ? rockCragMat : lavaBasaltMat
+        );
+        peb.visible = false;
+        peb.renderOrder = 22;
+        group.add(peb);
+        return {
+          peb,
+          baseX: Math.cos(a) * dist,
+          baseZ: Math.sin(a) * dist,
+          vx: Math.cos(a) * (0.8 + (i % 4) * 0.5),
+          vz: Math.sin(a) * (0.8 + (i % 4) * 0.5),
+          jumpH: 1.15 + (i % 5) * 0.65,
+          trigT: 0.54 + (i % 10) * 0.018,
+          idx: i
+        };
+      });
+
+      const whiteColor = new THREE.Color(0xffffff);
+      const warmCloudColor = new THREE.Color(0xfb923c);
+      const magmaCloudColor = new THREE.Color(0xdc2626);
+      const darkAshCloudColor = new THREE.Color(0x7f1d1d);
+      const skyBlueColor = new THREE.Color(0xdbeafe);
+      const skyMagmaColor = new THREE.Color(0x450a0a);
 
       return wrapUpdater((p, dt, fade = 1) => {
-        const cgWeight = smoothstep(0.02, 0.22, p) * (1 - smoothstep(0.84, 0.98, p)) * fade;
+        // 0.92 -> 0.99 在纯白闪光掩护下无缝切回终局棋盘
+        const cgWeight = smoothstep(0.01, 0.12, p) * (1 - smoothstep(0.92, 0.99, p)) * fade;
         vfxContext?.setSceneTransition?.(cgWeight);
-        cgScene.setFade(cgWeight, dt, p);
 
-        coronaRing1.rotation.z += dt * 2.4;
-        coronaRing2.rotation.y += dt * 3.0;
-        sunPhotosphere.rotation.y += dt * 1.5;
+        // 0.35 趁镜头仰视天空时，把地面草地地图 (cgScene) 无感切换为熔岩地图 (lavaWorldMapGroup)！
+        const useLavaMap = p >= 0.35;
+        if (!useLavaMap) {
+          cgScene.setFade(cgWeight, dt, p);
+          lavaWorldMapGroup.visible = false;
+        } else {
+          cgScene.setFade(0, dt, p);
+          cgScene.sceneGroup.visible = false;
+          lavaWorldMapGroup.visible = cgWeight > 0.02;
+          lavaWorldMapGroup.position.y = -(1 - cgWeight) * 0.4;
+        }
 
-        if (p < 0.24) {
-          const leapT = smoothstep(0.0, 0.22, p);
-          const kx = THREE.MathUtils.lerp(kPos.x, 0, leapT);
-          const kz = THREE.MathUtils.lerp(kPos.z, 0, leapT);
-          const ky = Math.sin(leapT * Math.PI) * 2.15;
-          const kSc = THREE.MathUtils.lerp(1.0, 1.48, leapT);
+        // 自转动画
+        lavaSphereCore.rotation.y += dt * 0.45;
+        lavaCrustWire.rotation.y -= dt * 0.35;
+        lavaCoronaMesh.rotation.z += dt * 0.55;
 
+        // 太阳转化为熔岩球进度 (0.28 -> 0.42)
+        const lavaTransformT = smoothstep(0.28, 0.42, p);
+        whiteSunCoreMat.opacity = (1 - smoothstep(0.15, 0.85, lavaTransformT)) * fade;
+        whiteSunHaloMat.opacity = (1 - lavaTransformT) * 0.78 * fade;
+        whiteSunCore.visible = whiteSunCoreMat.opacity > 0.02;
+        whiteSunHalo.visible = whiteSunHaloMat.opacity > 0.02;
+
+        lavaSphereCoreMat.opacity = smoothstep(0.05, 0.75, lavaTransformT) * fade;
+        lavaCrustWireMat.opacity = smoothstep(0.15, 0.90, lavaTransformT) * 0.72 * fade;
+        lavaCoronaMat.opacity = smoothstep(0.10, 0.85, lavaTransformT) * 0.68 * fade;
+        lavaSphereCore.visible = lavaSphereCoreMat.opacity > 0.02;
+        lavaCrustWire.visible = lavaCrustWireMat.opacity > 0.02;
+        lavaCoronaMesh.visible = lavaCoronaMat.opacity > 0.02;
+
+        // 天空背景与云层逐渐变色 (0.30 -> 0.56) 及内圈云朵向四周驱散 (0.34 -> 0.54)
+        const skyColorShiftT = smoothstep(0.30, 0.56, p);
+        const cloudDisperseT = smoothstep(0.34, 0.54, p);
+        if (this.scene && this.scene.background && cgWeight > 0.1) {
+          this.scene.background.copy(skyBlueColor).lerp(skyMagmaColor, skyColorShiftT);
+          if (this.scene.fog) {
+            this.scene.fog.color.copy(this.scene.background);
+          }
+        }
+
+        wreathedClouds.forEach((cl) => {
+          cl.cGrp.visible = cgWeight > 0.05 && p < 0.94;
+          // 紧贴太阳的内圈云朵率先变红并向四周被驱散推开；随后所有云朵在 p=0.56 前完全变为熔岩赤红色！
+          const localColorT = cl.isInnerWreath
+            ? smoothstep(0.28, 0.46, p)
+            : smoothstep(0.34, 0.54, p);
+          if (localColorT < 0.5) {
+            cl.cMat.color.copy(whiteColor).lerp(warmCloudColor, localColorT * 2);
+            cl.cMat.emissive.setHex(0x7c2d12);
+            cl.cMat.emissiveIntensity = 0.18 + localColorT * 0.65;
+          } else {
+            cl.cMat.color.copy(warmCloudColor).lerp(cl.idx % 2 === 0 ? magmaCloudColor : darkAshCloudColor, (localColorT - 0.5) * 2);
+            cl.cMat.emissive.setHex(0xdc2626);
+            cl.cMat.emissiveIntensity = 0.55;
+          }
+          const pushOut = cl.isInnerWreath
+            ? cloudDisperseT * 6.8
+            : cloudDisperseT * 2.4;
+          const curR = cl.baseRad + pushOut;
+          const eyeLevelCloudDrop = smoothstep(0.48, 0.58, p);
+          const targetCloudY = cl.isInnerWreath
+            ? THREE.MathUtils.lerp(cl.baseY, 6.8 + (cl.idx % 2) * 0.6, cloudDisperseT)
+            : THREE.MathUtils.lerp(cl.baseY, 6.4 + (cl.idx % 3) * 0.55, eyeLevelCloudDrop);
+          const curY = targetCloudY;
+          cl.cGrp.position.set(
+            Math.cos(cl.baseAngle) * curR,
+            curY,
+            Math.sin(cl.baseAngle) * curR
+          );
+          cl.cMat.opacity = 0.88 * cgWeight;
+        });
+
+        // =====================================================================
+        // 分阶段控制两“炮”、“将（帅）”、熔岩球、碎片雨、弹飞小石子、遮屏爆炸与全白转场
+        // =====================================================================
+        if (p < 0.12) {
+          // 阶段 1 (0.00 -> 0.12): “将（帅）”飞跃落到指定地面中心点 (0, 0.02, 0)，镜头俯视
+          const landT = smoothstep(0.0, 0.11, p);
           if (kingItem?.mesh) {
             kingItem.customDriven = true;
             this.setPiece3DPose(
               kingItem.mesh,
-              kx,
-              ky,
-              kz,
-              Math.sin(leapT * Math.PI) * 0.35,
-              leapT * Math.PI * 2,
+              THREE.MathUtils.lerp(kPos.x, 0, landT),
+              Math.sin(landT * Math.PI) * 1.85 + 0.02,
+              THREE.MathUtils.lerp(kPos.z, 0, landT),
+              Math.sin(landT * Math.PI) * 0.32,
+              landT * Math.PI * 2,
               0,
-              kSc,
+              THREE.MathUtils.lerp(1.0, 1.55, landT),
               1.0,
-              0.2
+              0.25
             );
           }
+          [
+            { item: cannonItem0, orig: cStart0 },
+            { item: cannonItem1, orig: cStart1 }
+          ].forEach(({ item, orig }, idx) => {
+            if (!item?.mesh || (idx === 1 && cannonItem1 === cannonItem0)) return;
+            item.customDriven = true;
+            this.setPiece3DPose(item.mesh, orig.x, 0.04, orig.z, 0, 0, 0, 1.15, 1.0, 0.35, 0xfbbf24);
+          });
 
           giantSunGroup.visible = true;
           giantSunGroup.position.copy(sunStartApex);
-          giantSunGroup.scale.setScalar(cgWeight);
-          cgScene.sceneGroup.userData.setScorchProgress?.(0, 0, fade);
+          giantSunGroup.scale.setScalar(1.0);
+          heroCenterFragment.visible = false;
+          screenBlockerFragment.visible = false;
+          screenBlockerExplosionGroup.visible = false;
+          fallingLavaRocks.forEach((r) => { r.mesh.visible = false; });
+          groundPebbles.forEach((g) => { g.peb.visible = false; });
+          if (vfxContext) vfxContext.whiteoutAlpha = 0;
 
           if (vfxContext?.setCameraOverride) {
             vfxContext.setCameraOverride(
-              new THREE.Vector3(kx * 0.5, 0.65, kz * 0.5),
-              10.6,
-              0.84,
-              0
+              new THREE.Vector3(0, 0.45, 0),
+              10.8,
+              0.58,
+              0,
+              true
             );
           }
-        } else if (p < 0.40) {
-          const lookUpT = smoothstep(0.24, 0.38, p);
-          if (kingItem?.mesh) {
-            kingItem.customDriven = true;
-            this.setPiece3DPose(kingItem.mesh, 0, 0.02, 0, 0, 0, 0, 1.48, 1.0, 0.25);
-          }
-
-          const initialDrop = smoothstep(0.32, 0.40, p);
-          const sunY = THREE.MathUtils.lerp(13.8, 11.8, initialDrop);
-          giantSunGroup.visible = true;
-          giantSunGroup.position.set(0, sunY, 0);
-          giantSunGroup.scale.setScalar((1.0 + initialDrop * 0.15) * fade);
-          cgScene.sceneGroup.userData.setScorchProgress?.(initialDrop * 0.15, 0, fade);
-
-          if (vfxContext?.setCameraOverride) {
-            vfxContext.setCameraOverride(
-              new THREE.Vector3(0, THREE.MathUtils.lerp(0.65, 10.5, lookUpT), 0),
-              THREE.MathUtils.lerp(10.6, 13.8, lookUpT),
-              THREE.MathUtils.lerp(0.84, 1.18, lookUpT),
-              0
-            );
-          }
-        } else if (p < 0.68) {
-          const fallT = (p - 0.40) / 0.28;
-          const fallEase = fallT * fallT;
-          const sunY = THREE.MathUtils.lerp(11.8, 1.35, fallEase);
-          giantSunGroup.visible = true;
-          giantSunGroup.position.set(0, sunY, 0);
-          giantSunGroup.scale.setScalar((1.15 + fallEase * 0.28) * fade);
-
-          const scorchP = smoothstep(0.05, 0.95, fallT);
-          const preCrackP = smoothstep(0.55, 1.0, fallT) * 0.45;
-          cgScene.sceneGroup.userData.setScorchProgress?.(scorchP, preCrackP, fade);
-
-          if (this.scene && this.scene.background) {
-            this.scene.background.lerp(new THREE.Color(0x450a0a), scorchP * 0.68);
-          }
+        } else if (p < 0.30) {
+          // 阶段 2 (0.12 -> 0.30): 镜头对着两“炮”螺旋升天（从俯视平滑转到仰视，对准白色太阳，太阳被白云环绕遮挡）
+          const spiralT = (p - 0.12) / 0.18;
+          const easeSpiral = smoothstep(0.0, 1.0, spiralT);
+          const curCannonY = THREE.MathUtils.lerp(0.2, sunStartApex.y - 1.2, easeSpiral);
+          const spiralRadius = THREE.MathUtils.lerp(2.6, 0.35, easeSpiral);
+          const spiralAng = spiralT * Math.PI * 5.0;
 
           if (kingItem?.mesh) {
             kingItem.customDriven = true;
-            const tremble = Math.sin(p * 95) * 0.09 * fallT;
+            this.setPiece3DPose(kingItem.mesh, 0, 0.02, 0, 0, 0, 0, 1.55, 1.0, 0.25);
+          }
+
+          [cannonItem0, cannonItem1].forEach((item, idx) => {
+            if (!item?.mesh || (idx === 1 && cannonItem1 === cannonItem0)) return;
+            item.customDriven = true;
+            const a = spiralAng + idx * Math.PI;
+            const cx = Math.cos(a) * spiralRadius;
+            const cz = Math.sin(a) * spiralRadius;
             this.setPiece3DPose(
-              kingItem.mesh,
-              tremble,
-              0.02,
-              -tremble,
+              item.mesh,
+              cx,
+              curCannonY,
+              cz,
+              spiralT * Math.PI * 4,
+              a,
               0,
-              0,
-              0,
-              1.48,
-              1.0,
-              fallT * 0.85,
-              0xef4444
+              THREE.MathUtils.lerp(1.25, 1.65, easeSpiral),
+              1 - smoothstep(0.85, 1.0, spiralT),
+              0.85,
+              0xfbbf24
             );
-          }
+          });
+
+          giantSunGroup.visible = true;
+          giantSunGroup.position.copy(sunStartApex);
+          // 仰视逼近时太阳在视野中极其巨大，几乎覆盖全屏！
+          giantSunGroup.scale.setScalar(THREE.MathUtils.lerp(1.0, 1.25, easeSpiral));
+          heroCenterFragment.visible = false;
+          screenBlockerFragment.visible = false;
+          screenBlockerExplosionGroup.visible = false;
+          if (vfxContext) vfxContext.whiteoutAlpha = 0;
 
           if (vfxContext?.setCameraOverride) {
+            // phi 从 0.58 (俯视) 平滑转至 2.15 (仰视高空太阳！此时 camY < targetY，镜头朝天仰望)
+            const camPhi = THREE.MathUtils.lerp(0.58, 2.15, easeSpiral);
+            const camTargetY = THREE.MathUtils.lerp(0.5, sunStartApex.y - 0.5, easeSpiral);
+            const camRad = THREE.MathUtils.lerp(10.8, 9.6, easeSpiral);
             vfxContext.setCameraOverride(
-              new THREE.Vector3(0, THREE.MathUtils.lerp(8.5, 2.2, fallEase), 0),
-              THREE.MathUtils.lerp(14.0, 20.8, smoothstep(0.0, 0.85, fallT)),
-              THREE.MathUtils.lerp(1.16, 0.90, fallEase),
-              fallT * 0.22
+              new THREE.Vector3(0, camTargetY, 0),
+              camRad,
+              camPhi,
+              spiralT * 0.35,
+              true
+            );
+          }
+        } else if (p < 0.56) {
+          // 阶段 3 & 4 (0.30 -> 0.56):
+          // 两“炮”与白色太阳融合转化为几乎覆盖全屏的巨大熔岩球 -> 熔岩球缓慢下坠驱散白云、云朵与天空变色 ->
+          // 周围熔岩石头碎片从缓慢逐渐加速下坠 -> 一个大号碎片穿过屏幕正中心 (0.45 -> 0.55)，随之镜头从仰视随着熔岩球慢慢转向平视/俯视！
+          [cannonItem0, cannonItem1].forEach((item) => {
+            if (item?.mesh) { item.customDriven = true; item.mesh.visible = false; }
+          });
+          if (kingItem?.mesh) {
+            kingItem.customDriven = true;
+            this.setPiece3DPose(kingItem.mesh, 0, 0.02, 0, 0, 0, 0, 1.55, 1.0, 0.45, 0xef4444);
+          }
+
+          const slowDescendT = smoothstep(0.32, 0.56, p);
+          const curSunY = THREE.MathUtils.lerp(17.5, 12.6, slowDescendT);
+          giantSunGroup.visible = true;
+          giantSunGroup.position.set(0, curSunY, 0);
+          giantSunGroup.scale.setScalar(1.28);
+
+          // 周围熔岩碎片从缓慢逐渐加速下坠 (t^2.4 加速曲线)
+          fallingLavaRocks.forEach((rk) => {
+            if (p >= rk.startT && p <= rk.startT + rk.dur) {
+              const lt = (p - rk.startT) / rk.dur;
+              const accel = Math.pow(lt, 2.4); // 从缓慢漂浮逐渐猛烈加速下坠！
+              rk.mesh.visible = true;
+              rk.mesh.position.set(rk.x, THREE.MathUtils.lerp(rk.startY, 0.1, accel), rk.z);
+              rk.mesh.rotation.x += dt * (4 + lt * 12);
+              rk.mesh.rotation.z += dt * (3 + lt * 10);
+            } else {
+              rk.mesh.visible = false;
+            }
+          });
+
+          // 0.44 -> 0.55: 一颗硕大的熔岩碎片穿过屏幕正中心（从缓慢逐渐加速掠过镜头正中央！）
+          const heroFragT = (p - 0.43) / 0.12;
+          if (heroFragT >= 0 && heroFragT <= 1) {
+            const accelHero = Math.pow(heroFragT, 2.2);
+            heroCenterFragment.visible = true;
+            // 位于镜头与目标连线正中央，使这颗大碎片直穿屏幕正中心！
+            const fragY = THREE.MathUtils.lerp(curSunY - 1.2, 2.5, accelHero);
+            const fragZ = THREE.MathUtils.lerp(2.2, 5.2, Math.sin(heroFragT * Math.PI));
+            heroCenterFragment.position.set(0, fragY, fragZ);
+            heroCenterFragment.rotation.x += dt * 9;
+            heroCenterFragment.rotation.y += dt * 7;
+            heroCenterFragment.scale.setScalar(1.15 + Math.sin(heroFragT * Math.PI) * 0.55);
+          } else {
+            heroCenterFragment.visible = false;
+          }
+          screenBlockerFragment.visible = false;
+          screenBlockerExplosionGroup.visible = false;
+          groundPebbles.forEach((g) => { g.peb.visible = false; });
+          if (vfxContext) vfxContext.whiteoutAlpha = 0;
+
+          // 运镜：0.30 -> 0.45 保持仰视对准几乎铺满全屏的熔岩球；0.45 -> 0.56 随着中心大碎片穿屏下坠，视角从仰视平滑转向与地面平行！
+          if (vfxContext?.setCameraOverride) {
+            const tiltFollowT = smoothstep(0.45, 0.56, p);
+            const camPhi = THREE.MathUtils.lerp(2.15, Math.PI * 0.495, tiltFollowT);
+            const camTargetY = THREE.MathUtils.lerp(curSunY - 0.4, 3.2, tiltFollowT);
+            const camRad = THREE.MathUtils.lerp(9.6, 15.2, tiltFollowT);
+            vfxContext.setCameraOverride(
+              new THREE.Vector3(0, camTargetY, 0),
+              camRad,
+              camPhi,
+              0.35 * (1 - tiltFollowT),
+              true
+            );
+          }
+        } else if (p < 0.76) {
+          // 阶段 5 (0.56 -> 0.76):
+          // 大碎片穿过屏幕中心后，视线与地面平行 (phi = Math.PI * 0.495 ≈ 1.555)，
+          // 同时清晰看到：上方是已经完全变红的云层下露出一部分的巨大熔岩球逼近半空，下方是地面上的“将（帅）”！
+          // 越来越多的碎片砸向地面并掀起小石子，直到 p=0.72->0.76 一个碎片从空中砸在镜头前爆炸覆盖并遮挡一瞬间整个屏幕！
+          heroCenterFragment.visible = false;
+          const midAirApproachT = (p - 0.56) / 0.20;
+          // 熔岩球球心位于 y = 11.6 -> 9.4（半径 5.85，因此在 y = 9.2 的变色红云层下方露出球体下半部，正逼近半空！）
+          const curSunY = THREE.MathUtils.lerp(10.6, 8.5, midAirApproachT);
+          giantSunGroup.visible = true;
+          giantSunGroup.position.set(0, curSunY, 0);
+          giantSunGroup.scale.setScalar(1.22);
+
+          if (kingItem?.mesh) {
+            kingItem.customDriven = true;
+            const tremble = Math.sin(p * 110) * 0.08 * midAirApproachT;
+            this.setPiece3DPose(kingItem.mesh, tremble, 0.02, -tremble, 0.12, 0, 0, 1.62, 1.0, 0.75, 0xef4444);
+          }
+
+          // 越来越多的碎片加速砸向地面
+          fallingLavaRocks.forEach((rk, i) => {
+            const cycle = ((p - 0.54) * (2.6 + (i % 3) * 0.5) + i * 0.17) % 1.0;
+            if (cycle >= 0 && cycle < 0.92) {
+              const accel = cycle * cycle;
+              rk.mesh.visible = true;
+              rk.mesh.position.set(rk.x, THREE.MathUtils.lerp(11.5, 0.05, accel), rk.z);
+              rk.mesh.rotation.x += dt * 12;
+              rk.mesh.rotation.z += dt * 10;
+              if (cycle > 0.84) {
+                this.cameraShake = Math.max(this.cameraShake || 0, 0.22);
+              }
+            } else {
+              rk.mesh.visible = false;
+            }
+          });
+
+          // 碎片砸到地面时掀起四溅弹跳的小石子
+          groundPebbles.forEach((gp) => {
+            if (p >= gp.trigT) {
+              const pt = ((p - gp.trigT) * 4.2) % 1.0;
+              gp.peb.visible = true;
+              gp.peb.position.set(
+                gp.baseX + gp.vx * pt * 0.85,
+                0.04 + Math.abs(Math.sin(pt * Math.PI)) * gp.jumpH * 0.75,
+                gp.baseZ + gp.vz * pt * 0.85
+              );
+              gp.peb.rotation.x += dt * 14;
+              gp.peb.rotation.y += dt * 11;
+            } else {
+              gp.peb.visible = false;
+            }
+          });
+
+          // 0.70 -> 0.76: 一颗大碎片从空中极速砸向镜头正前方，并在 p=0.73->0.76 产生覆盖并遮挡整个屏幕的爆炸！
+          if (p >= 0.70 && p < 0.735) {
+            const bfT = (p - 0.70) / 0.035;
+            screenBlockerFragment.visible = true;
+            screenBlockerFragment.position.set(
+              0,
+              THREE.MathUtils.lerp(8.5, 2.9, bfT * bfT),
+              THREE.MathUtils.lerp(8.0, 12.2, bfT)
+            );
+            screenBlockerFragment.rotation.x += dt * 18;
+            screenBlockerFragment.scale.setScalar(1.2 + bfT * 0.8);
+          } else {
+            screenBlockerFragment.visible = false;
+          }
+
+          if (p >= 0.728) {
+            const covP = (p - 0.728) / 0.032; // 0 -> 1 在 p=0.76 达到 100% 遮蔽全屏
+            screenBlockerExplosionGroup.visible = true;
+            screenBlockerExplosionGroup.position.set(0, 2.8, 12.2);
+            screenBlockerExplosionGroup.scale.setScalar(1.0 + covP * 3.8);
+            blockerFlashCore.material.opacity = Math.min(1, covP * 1.35);
+            blockerFireShell.material.opacity = Math.min(1, covP * 1.45);
+            this.cameraShake = 0.45;
+          } else {
+            screenBlockerExplosionGroup.visible = false;
+          }
+          if (vfxContext) vfxContext.whiteoutAlpha = 0;
+
+          if (vfxContext?.setCameraOverride) {
+            // 视线与地面完全平行 (phi = Math.PI * 0.495)，同时囊括上方云层下露出的熔岩球与下方地面上的“将（帅）”！
+            vfxContext.setCameraOverride(
+              new THREE.Vector3(0, 3.05, 0),
+              15.4,
+              Math.PI * 0.495,
+              0,
+              true
             );
           }
         } else {
-          // 阶段4：太阳轰然砸入地面，对场地造成毁灭性物理破坏（地壳掀翻、熔岩火柱喷涌、陨石深坑塌陷）与惊天大爆炸！
-          const postP = (p - 0.68) / 0.32;
-          const expP = Math.min(1, postP / 0.78);
-          const destructionP = Math.min(1, 0.45 + postP * 1.4);
+          // 阶段 6 (0.76 -> 1.00):
+          // 遮屏爆炸散去的下一个瞬间画面 (instant cut)：
+          // 巨大熔岩球已经逼近地面上方，正在缓慢下落快要接触地面（地上是“将（帅）”），
+          // 四周小石子剧烈弹飞升空，整个屏幕随着小石子弹飞渐变成全白，然后无缝衔接回终局棋盘！
+          heroCenterFragment.visible = false;
+          screenBlockerFragment.visible = false;
+          fallingLavaRocks.forEach((r) => { r.mesh.visible = false; });
 
-          const sunShrink = Math.max(0, 1 - postP * 2.4);
-          giantSunGroup.visible = sunShrink > 0.02;
-          giantSunGroup.position.set(0, 0.95, 0);
-          giantSunGroup.scale.setScalar((1.42 + postP * 1.25) * sunShrink * fade);
-
-          cgScene.sceneGroup.userData.setScorchProgress?.(1.0, destructionP, cgWeight);
-          solarSupernovaExplosion.update.call(this, expP, fade, centerStage);
-
-          if (this.scene && this.scene.background && cgWeight > 0.2) {
-            this.scene.background.lerp(new THREE.Color(0x3b0806), cgWeight * 0.75);
+          // 0.76 -> 0.80 遮屏爆炸火光迅速散开，露出已经近在咫尺的巨大熔岩球！
+          if (p < 0.80) {
+            const clearT = (p - 0.76) / 0.04;
+            screenBlockerExplosionGroup.visible = true;
+            screenBlockerExplosionGroup.position.set(0, 1.2, 6.5);
+            screenBlockerExplosionGroup.scale.setScalar(4.8 + clearT * 2.0);
+            blockerFlashCore.material.opacity = (1 - clearT) * 0.95;
+            blockerFireShell.material.opacity = (1 - clearT) * 0.90;
+          } else {
+            screenBlockerExplosionGroup.visible = false;
           }
 
+          // 熔岩球半径为 5.85 * 1.15 ≈ 6.72；球心从 y = 7.65 缓慢下降至 y = 6.75（球体底端从 y = 0.93 缓慢下落至 y = 0.03 几乎接触地面“将（帅）”！）
+          const closeDropT = smoothstep(0.76, 0.92, p);
+          const endFadeOut = 1 - smoothstep(0.92, 0.98, p);
+          const sphereCenterY = THREE.MathUtils.lerp(7.65, 6.76, closeDropT);
+          giantSunGroup.visible = endFadeOut > 0.02;
+          giantSunGroup.position.set(0, sphereCenterY, 0);
+          giantSunGroup.scale.setScalar(1.15);
+
+          // 地上是“将（帅）”，在熔岩球泰山压顶下剧烈震颤，并在全白转场后恢复至终局原位
           if (kingItem?.mesh) {
             kingItem.customDriven = true;
-            if (p < 0.86) {
-              applyKingHitFeedback((p - 0.68) / 0.18, 'heavy_smash', 0, 1, centerStage, 1.48);
-            } else {
-              const backT = smoothstep(0.86, 0.98, p);
-              const kx = THREE.MathUtils.lerp(0, kPos.x, backT);
-              const kz = THREE.MathUtils.lerp(0, kPos.z, backT);
-              const ky = Math.sin(backT * Math.PI) * 0.75;
+            if (p < 0.92) {
+              const jitter = Math.sin(p * 150) * 0.11;
+              const squash = 1 + closeDropT * 0.25;
               this.setPiece3DPose(
                 kingItem.mesh,
-                kx,
-                ky,
-                kz,
+                jitter,
+                0.02,
+                -jitter,
+                0.15,
                 0,
                 0,
-                0,
-                THREE.MathUtils.lerp(1.48, 1.0, backT),
+                [1.62 * squash, 1.62 / squash, 1.62 * squash],
                 1.0,
-                (1 - backT) * 0.5
+                0.95,
+                0xef4444
+              );
+            } else {
+              const backT = smoothstep(0.92, 0.99, p);
+              this.setPiece3DPose(
+                kingItem.mesh,
+                THREE.MathUtils.lerp(0, kPos.x, backT),
+                0,
+                THREE.MathUtils.lerp(0, kPos.z, backT),
+                0,
+                0,
+                0,
+                THREE.MathUtils.lerp(1.4, 1.0, backT),
+                1.0,
+                0
               );
             }
           }
 
-          if (vfxContext?.setCameraOverride && p < 0.88) {
+          // 两“炮”在全白转场消退时归位
+          if (p >= 0.91) {
+            const backC = smoothstep(0.91, 0.99, p);
+            [
+              { item: cannonItem0, orig: cStart0 },
+              { item: cannonItem1, orig: cStart1 }
+            ].forEach(({ item, orig }, idx) => {
+              if (!item?.mesh || (idx === 1 && cannonItem1 === cannonItem0)) return;
+              item.customDriven = true;
+              this.setPiece3DPose(item.mesh, orig.x, 0, orig.z, 0, 0, 0, 1.0, backC, 0);
+            });
+          }
+
+          // 地面小石子受熔岩球压迫冲击波向上劇烈弹飞！
+          const pebbleFlyT = smoothstep(0.76, 0.94, p);
+          groundPebbles.forEach((gp) => {
+            if (p < 0.95) {
+              gp.peb.visible = true;
+              const lift = Math.sin(pebbleFlyT * Math.PI * 0.85) * gp.jumpH * 2.15;
+              gp.peb.position.set(
+                gp.baseX + gp.vx * pebbleFlyT * 2.2,
+                0.05 + lift,
+                gp.baseZ + gp.vz * pebbleFlyT * 2.2
+              );
+              gp.peb.rotation.x += dt * 18;
+              gp.peb.rotation.z += dt * 15;
+              gp.peb.scale.setScalar(endFadeOut * fade);
+            } else {
+              gp.peb.visible = false;
+            }
+          });
+
+          // 整个屏幕随着小石子弹飞渐变成全白 (0.80 -> 0.92 渐变为 1.0 全白，0.92 -> 0.99 从全白平滑褪去衔接回终局棋盘！)
+          if (vfxContext) {
+            if (p < 0.92) {
+              vfxContext.whiteoutAlpha = smoothstep(0.79, 0.91, p);
+            } else {
+              vfxContext.whiteoutAlpha = 1 - smoothstep(0.92, 0.99, p);
+            }
+          }
+
+          if (vfxContext?.setCameraOverride && p < 0.93) {
+            // 在 p=0.76 瞬间切换 (instant = p < 0.78) 到近景平低机位，直视熔岩球底端逼近地面上的“将（帅）”！
             vfxContext.setCameraOverride(
               new THREE.Vector3(0, 1.15, 0),
-              THREE.MathUtils.lerp(19.2, 12.2, postP),
-              0.84,
-              0.22 + postP * 0.22
+              9.6,
+              1.36,
+              0,
+              true,
+              p < 0.785
             );
           }
         }
@@ -7099,9 +8423,9 @@ Object.assign(Xiangqi3DApp.prototype, {
 
     // =========================================================================
     // 17. 海底捞月 (Frost Lotus Strike / Sea Bottom Moon):
-    // 场景平滑变成一片夜晚的海洋，海中有圆月的倒影，镜头俯视海洋，圆月的倒影在镜头中心且比较大 ->
-    // 在一阵阵波纹后圆月的倒影逐渐变成对面的“将（帅）” ->
-    // 弹出海面后翻转几圈至背面（反面朝上） -> 然后平滑切回终局棋面！
+    // 1. 动画播放时，海面激起扩算波纹并将棋盘上的【其他所有棋子向四周驱散隐去】，只留纯净的星夜沧海与中心明月倒影；
+    // 2. 美化后的高精广寒圆月倒影与流光海面在一阵阵波纹后逐渐凝聚变成对面的“将（帅）”；
+    // 3. “将（帅）”破水弹出海面后在空中翻转数圈至背面（反面朝上），随后平滑切回终局棋面！
     // =========================================================================
     const cgScene = this.createCGSceneEnvironment('cg_ocean_night', group);
     const moonReflectGroup = cgScene.sceneGroup.userData.moonReflectGroup;
@@ -7109,13 +8433,14 @@ Object.assign(Xiangqi3DApp.prototype, {
     const moonInnerMat = cgScene.sceneGroup.userData.moonInnerMat;
     const rippleRings = cgScene.sceneGroup.userData.rippleRings || [];
 
-    const waterBurstDrops = Array.from({ length: 20 }, (_, i) => {
-      const ang = (i / 20) * Math.PI * 2;
+    const waterBurstDrops = Array.from({ length: 24 }, (_, i) => {
+      const ang = (i / 24) * Math.PI * 2;
       const drop = new THREE.Mesh(
         new THREE.SphereGeometry(0.085, 10, 10),
         i % 2 === 0 ? jadeIceMat : goldGlowMat.clone()
       );
       drop.visible = false;
+      drop.renderOrder = 22;
       group.add(drop);
       return { drop, ang, spd: 1.8 + (i % 4) * 0.55, lift: 1.8 + (i % 3) * 0.65 };
     });
@@ -7125,11 +8450,42 @@ Object.assign(Xiangqi3DApp.prototype, {
       vfxContext?.setSceneTransition?.(cgWeight);
       cgScene.setFade(cgWeight, dt, p);
 
+      // 关键增强：驱散棋盘上除敌方“将（帅）”以外的所有其他棋子（含参演攻击子与普通棋盘棋子）！
+      // 在 0.00 -> 0.22 随海浪波纹向四周径向推散并淡出，在 0.84 -> 0.97 平滑归位
+      const disperseT = smoothstep(0.0, 0.22, p) * (1 - smoothstep(0.84, 0.97, p));
+      (this._activeCheckerMeshes || []).forEach((item) => {
+        if (!item?.mesh || item === kingItem || item.isKing) return;
+        item.customDriven = true;
+        const bx = item.basePos.x;
+        const bz = item.basePos.z;
+        const r = Math.hypot(bx, bz) || 1;
+        const pushDist = disperseT * 4.8;
+        const curX = bx + (bx / r) * pushDist;
+        const curZ = bz + (bz / r) * pushDist;
+        const alpha = Math.max(0, 1 - disperseT * 1.35);
+        this.setPiece3DPose(item.mesh, curX, 0, curZ, 0, disperseT * Math.PI, 0, 1 - disperseT * 0.3, alpha, 0);
+      });
+      if (this._vfxWorldSnapshot?.pieceState) {
+        for (const ps of this._vfxWorldSnapshot.pieceState) {
+          if (ps.isParticipant || !ps.mesh) continue;
+          const bx = ps.pos.x;
+          const bz = ps.pos.z;
+          const r = Math.hypot(bx, bz) || 1;
+          const pushDist = disperseT * 5.2;
+          ps.mesh.position.set(
+            bx + (bx / r) * pushDist,
+            ps.pos.y - disperseT * 0.65,
+            bz + (bz / r) * pushDist
+          );
+          if (disperseT > 0.72) ps.mesh.visible = false;
+        }
+      }
+
       rippleRings.forEach(({ rMesh, rMat, i }) => {
-        const waveCycle = (p * 3.2 + i * 0.14) % 1.0;
-        const sc = 0.35 + waveCycle * 2.25;
+        const waveCycle = (p * 3.2 + i * 0.12) % 1.0;
+        const sc = 0.35 + waveCycle * 2.35;
         rMesh.scale.setScalar(sc);
-        rMat.opacity = Math.sin(waveCycle * Math.PI) * 0.72 * cgWeight;
+        rMat.opacity = Math.sin(waveCycle * Math.PI) * 0.76 * cgWeight;
       });
 
       const enlargedKingScale = 2.18;
@@ -7137,7 +8493,9 @@ Object.assign(Xiangqi3DApp.prototype, {
       if (p < 0.30) {
         if (kingItem?.mesh) {
           kingItem.customDriven = true;
-          this.setPiece3DPose(kingItem.mesh, kPos.x, 0, kPos.z, 0, 0, 0, 1.0, 1 - cgWeight, 0);
+          // 敌方“将（帅）”在开场也随其他棋子向外退隐，随后从海面中心圆月倒影中化生浮现！
+          const kAlpha = Math.max(0, 1 - smoothstep(0.0, 0.18, p));
+          this.setPiece3DPose(kingItem.mesh, kPos.x, 0, kPos.z, 0, 0, 0, 1.0, kAlpha, 0);
         }
         if (moonReflectGroup) {
           moonReflectGroup.visible = true;
@@ -7162,8 +8520,8 @@ Object.assign(Xiangqi3DApp.prototype, {
           moonReflectGroup.visible = morphT < 0.96;
           const mScale = THREE.MathUtils.lerp(1.0, 0.48, morphT) + rippleWobble;
           moonReflectGroup.scale.setScalar(Math.max(0.01, mScale));
-          if (moonCoreMat) moonCoreMat.opacity = (1 - morphT * 0.88) * 0.92 * cgWeight;
-          if (moonInnerMat) moonInnerMat.opacity = (1 - morphT * 0.75) * 0.68 * cgWeight;
+          if (moonCoreMat) moonCoreMat.opacity = (1 - morphT * 0.88) * 0.95 * cgWeight;
+          if (moonInnerMat) moonInnerMat.opacity = (1 - morphT * 0.75) * 0.72 * cgWeight;
         }
 
         if (kingItem?.mesh) {
@@ -7171,14 +8529,14 @@ Object.assign(Xiangqi3DApp.prototype, {
           this.setPiece3DPose(
             kingItem.mesh,
             rippleWobble,
-            0.02,
+            0.03,
             -rippleWobble,
             0,
             (1 - morphT) * Math.PI * 0.5,
             0,
             enlargedKingScale * (0.75 + 0.25 * morphT),
             smoothstep(0.08, 0.85, morphT),
-            (1 - morphT * 0.4) * 0.75,
+            (1 - morphT * 0.4) * 0.78,
             0xfef08a
           );
         }
@@ -7192,8 +8550,8 @@ Object.assign(Xiangqi3DApp.prototype, {
 
         const popT = (p - 0.54) / 0.30;
         const arcY = Math.sin(Math.min(1, popT / 0.82) * Math.PI) * 3.85;
-        const curY = Math.max(0.04, arcY);
-        const flipRotX = smoothstep(0.0, 0.82, popT) * Math.PI * 5; // 纯单轴翻转两圈半至背面朝上！
+        const curY = Math.max(0.05, arcY);
+        const flipRotX = smoothstep(0.0, 0.82, popT) * Math.PI * 5;
 
         if (popT > 0.80 && popT < 0.88) {
           this.cameraShake = Math.max(this.cameraShake || 0, 0.42);
@@ -7221,7 +8579,7 @@ Object.assign(Xiangqi3DApp.prototype, {
           if (splashP > 0 && splashP < 1) {
             drop.visible = true;
             const r = 0.45 + splashP * spd;
-            drop.position.set(Math.cos(ang) * r, Math.sin(splashP * Math.PI) * lift, Math.sin(ang) * r);
+            drop.position.set(Math.cos(ang) * r, Math.max(0.05, Math.sin(splashP * Math.PI) * lift), Math.sin(ang) * r);
             drop.scale.setScalar((1.15 - splashP * 0.65) * fade);
           } else {
             drop.visible = false;
@@ -7268,9 +8626,9 @@ Object.assign(Xiangqi3DApp.prototype, {
 
     this.sfx.playCheckmateVFXSound(vfxType);
 
-    const TOTAL_DURATION = 6.80;
+    const TOTAL_DURATION = vfxType === 'heaven_earth_cannon' ? 8.60 : 6.80;
     const STAGE1_END = 0.45;
-    const STAGE2_END = 5.70;
+    const STAGE2_END = vfxType === 'heaven_earth_cannon' ? 7.55 : 5.70;
     this.vfxAtmosphereDuration = TOTAL_DURATION;
     this.vfxAtmosphereTimer = TOTAL_DURATION;
     this._vfxCustomColorGrading = true;
@@ -7352,8 +8710,9 @@ Object.assign(Xiangqi3DApp.prototype, {
       cameraOverride: null,
       onStage1Update: null,
       cgSceneWeight: 0,
-      setCameraOverride(targetVec, radius, phi, thetaOffset = 0) {
-        this.cameraOverride = { targetVec, radius, phi, thetaOffset };
+      whiteoutAlpha: 0,
+      setCameraOverride(targetVec, radius, phi, thetaOffset = 0, allowHighPhi = false, instant = false) {
+        this.cameraOverride = { targetVec, radius, phi, thetaOffset, allowHighPhi, instant };
       },
       setSceneTransition: (cgWeight) => {
         vfxContext.cgSceneWeight = Math.max(0, Math.min(1, cgWeight));
@@ -7540,16 +8899,35 @@ Object.assign(Xiangqi3DApp.prototype, {
 
           if (vfxContext.cameraOverride) {
             const ov = vfxContext.cameraOverride;
-            this.camTarget.lerp(ov.targetVec, 0.28);
+            if (ov.instant) {
+              this.camTarget.copy(ov.targetVec);
+            } else {
+              this.camTarget.lerp(ov.targetVec, 0.34);
+            }
             this.desiredSpherical.radius = ov.radius * mobileScale;
-            this.desiredSpherical.phi = isMobileView ? Math.min(0.96, ov.phi * 0.94) : ov.phi;
+            this.desiredSpherical.phi = (isMobileView && !ov.allowHighPhi)
+              ? Math.min(0.96, ov.phi * 0.94)
+              : ov.phi;
             this.desiredSpherical.theta = baseTheta + (ov.thetaOffset || 0);
+            if (ov.instant && this.camSpherical) {
+              this.camSpherical.radius = this.desiredSpherical.radius;
+              this.camSpherical.phi = this.desiredSpherical.phi;
+              this.camSpherical.theta = this.desiredSpherical.theta;
+            }
           } else {
             const targetFocusFactor = isMobileView ? 0.68 : 0.90;
             this.camTarget.set(focusX * targetFocusFactor, 0.55, focusZ * targetFocusFactor);
             this.desiredSpherical.radius = (10.4 + Math.sin(p2 * Math.PI) * 0.85) * mobileScale;
             this.desiredSpherical.phi = (isMobileView ? 0.86 : 0.96) + Math.cos(p2 * Math.PI) * 0.06;
             this.desiredSpherical.theta = baseTheta + 0.16 + Math.sin(p2 * Math.PI * 1.5) * 0.24;
+          }
+
+          // 若当前帧存在全白强光转场 (如天地炮熔岩球触地全白过渡)，在 2D 顶层绘制柔和渐变全白遮罩
+          if (vfxContext.whiteoutAlpha > 0.01) {
+            ctx.save();
+            ctx.fillStyle = `rgba(255, 253, 248, ${Math.min(1, vfxContext.whiteoutAlpha)})`;
+            ctx.fillRect(0, 0, w, h);
+            ctx.restore();
           }
 
           const bw = 1 - (vfxContext.cgSceneWeight || 0);
@@ -7568,11 +8946,21 @@ Object.assign(Xiangqi3DApp.prototype, {
                 Math.cos(p2 * 36) * 0.18
               );
             } else {
+              // 未被当前绝杀动画主动驱动的辅助高亮棋子随棋盘可见度 bw 平滑隐去，绝不在全屏 CG 场景中突兀残留！
               const hoverY = (0.24 + Math.sin(p2 * 14 + idx) * 0.08) * bw;
-              item.mesh.position.set(item.basePos.x, hoverY, item.basePos.z);
-              item.mesh.rotation.set(Math.sin(p2 * 10 + idx) * 0.08 * bw, p2 * Math.PI * 2 * bw, 0);
               const pulseSc = 1.0 + (0.06 + Math.sin(p2 * 16 + idx) * 0.04) * bw;
-              item.mesh.scale.set(pulseSc, pulseSc, pulseSc);
+              this.setPiece3DPose(
+                item.mesh,
+                item.basePos.x,
+                hoverY,
+                item.basePos.z,
+                Math.sin(p2 * 10 + idx) * 0.08 * bw,
+                p2 * Math.PI * 2 * bw,
+                0,
+                pulseSc,
+                bw,
+                0
+              );
             }
           });
         } else {
