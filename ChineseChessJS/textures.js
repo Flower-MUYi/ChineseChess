@@ -5,6 +5,7 @@ const BOARD_HEIGHT = CELL_SIZE * 9;
 function gridToWorld(r, c) {
   return {
     x: (c - 4) * CELL_SIZE,
+    y: 0,
     z: (r - 4.5) * CELL_SIZE
   };
 }

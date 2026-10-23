@@ -6853,6 +6853,7 @@ const BOARD_HEIGHT = CELL_SIZE * 9;
 function gridToWorld(r, c) {
   return {
     x: (c - 4) * CELL_SIZE,
+    y: 0,
     z: (r - 4.5) * CELL_SIZE
   };
 }
@@ -12401,23 +12402,33 @@ Object.assign(Xiangqi3DApp.prototype, {
    */
   setPiece3DPose(mesh, x, y, z, rx = 0, ry = 0, rz = 0, scale = 1.0, opacity = 1.0, glowIntensity = 0.0, glowHex = 0xf59e0b) {
     if (!mesh) return;
-    const clampedAlpha = Math.max(0, Math.min(1, opacity));
+    const safeAlpha = Number.isFinite(opacity) ? opacity : 1.0;
+    const clampedAlpha = Math.max(0, Math.min(1, safeAlpha));
     if (clampedAlpha <= 0.01) {
       mesh.visible = false;
       return;
     }
     mesh.visible = true;
     mesh.renderOrder = 25;
-    const sx = Array.isArray(scale) ? scale[0] : scale;
-    const sy = Array.isArray(scale) ? scale[1] : scale;
-    const sz = Array.isArray(scale) ? scale[2] : scale;
+    const rawSx = Array.isArray(scale) ? scale[0] : scale;
+    const rawSy = Array.isArray(scale) ? scale[1] : scale;
+    const rawSz = Array.isArray(scale) ? scale[2] : scale;
+    const sx = Number.isFinite(rawSx) ? rawSx : 1.0;
+    const sy = Number.isFinite(rawSy) ? rawSy : 1.0;
+    const sz = Number.isFinite(rawSz) ? rawSz : 1.0;
+    const sRx = Number.isFinite(rx) ? rx : 0;
+    const sRy = Number.isFinite(ry) ? ry : 0;
+    const sRz = Number.isFinite(rz) ? rz : 0;
+    const sX = Number.isFinite(x) ? x : 0;
+    const sY = Number.isFinite(y) ? y : 0;
+    const sZ = Number.isFinite(z) ? z : 0;
     mesh.scale.set(sx, sy, sz);
-    mesh.rotation.set(rx, ry, rz);
+    mesh.rotation.set(sRx, sRy, sRz);
 
     // 棋子本地圆柱几何中心位于 (0, 0.175, 0)，补偿旋转带来的中心偏移
     const halfH = 0.175 * sy;
     const localMid = new THREE.Vector3(0, halfH, 0).applyEuler(mesh.rotation);
-    mesh.position.set(x - localMid.x, y + halfH - localMid.y, z - localMid.z);
+    mesh.position.set(sX - localMid.x, sY + halfH - localMid.y, sZ - localMid.z);
 
     const wantTrans = clampedAlpha < 0.995;
     mesh.children.forEach((ch) => {
@@ -15425,6 +15436,34 @@ Object.assign(Xiangqi3DApp.prototype, {
    * 构建 17 种古谱杀法的全屏 CG 级 3D 场景切换与棋子动态变身演出
    */
   build3DSpectacleForType(vfxType, kPos, cPos, rPos, winnerColor, pattern = null, kingItem = null, vfxContext = null) {
+    kPos = new THREE.Vector3(Number(kPos?.x) || 0, Number(kPos?.y) || 0, Number(kPos?.z) || 0);
+    cPos = new THREE.Vector3(Number(cPos?.x) || 0, Number(cPos?.y) || 0, Number(cPos?.z) || 0);
+    rPos = new THREE.Vector3(Number(rPos?.x) || 0, Number(rPos?.y) || 0, Number(rPos?.z) || 0);
+    if ((!kingItem || !kingItem.mesh) && this.engine?.board) {
+      for (let r = 0; r < 10 && (!kingItem || !kingItem.mesh); r++) {
+        for (let c = 0; c < 9 && (!kingItem || !kingItem.mesh); c++) {
+          const p = this.engine.board[r][c];
+          if (p && p.type === 'k' && p.color !== winnerColor) {
+            const m = this.pieceMeshes?.get(p.id);
+            if (m) {
+              kingItem = (this._activeCheckerMeshes || []).find(x => x.mesh === m);
+              if (!kingItem) {
+                kingItem = {
+                  mesh: m,
+                  piece: p,
+                  coord: { r, c },
+                  basePos: new THREE.Vector3(m.position.x, 0, m.position.z),
+                  isKing: true,
+                  isAttacker: false,
+                  customDriven: false
+                };
+                if (Array.isArray(this._activeCheckerMeshes)) this._activeCheckerMeshes.push(kingItem);
+              }
+            }
+          }
+        }
+      }
+    }
     const group = new THREE.Group();
     group.visible = false;
     this.checkmateVFXGroup.add(group);
@@ -15554,8 +15593,13 @@ Object.assign(Xiangqi3DApp.prototype, {
       const item = findAttackerItemByType(typeChar);
       if (item && item.basePos) return item.basePos.clone();
       const found = checkersList.find(ch => ch && ch.type === typeChar && typeof ch.r === 'number' && typeof ch.c === 'number');
-      if (found) return gridToWorld(found.r, found.c);
-      return fallbackPos;
+      if (found) {
+        const gw = gridToWorld(found.r, found.c);
+        return new THREE.Vector3(gw.x, 0, gw.z);
+      }
+      return fallbackPos instanceof THREE.Vector3
+        ? fallbackPos.clone()
+        : new THREE.Vector3(Number(fallbackPos?.x) || 0, Number(fallbackPos?.y) || 0, Number(fallbackPos?.z) || 0);
     };
 
     const findFriendlyGeneralItem = () => {
@@ -15785,7 +15829,7 @@ Object.assign(Xiangqi3DApp.prototype, {
       if (!kingItem || !kingItem.mesh || hitP <= 0) return;
       kingItem.customDriven = true;
       const m = kingItem.mesh;
-      const bp = anchorPos || kingItem.basePos || kVec;
+      const bp = anchorPos || kingItem.basePos || kPos;
       const clamped = Math.min(1, Math.max(0, hitP));
       const env = Math.sin(clamped * Math.PI);
       const decay = 1 - clamped * 0.75;
@@ -18705,33 +18749,45 @@ Object.assign(Xiangqi3DApp.prototype, {
       const horseItem = findAttackerItemByType('n', null) || attackerItems[0];
       const partnerItem = findAttackerItemByType('r', horseItem)
         || findAttackerItemByType('c', horseItem)
-        || attackerItems.find((it) => it !== horseItem)
+        || attackerItems.find((it) => it !== horseItem && it !== kingItem && !it.isKing)
         || findFriendlyGeneralItem()
         || horseItem;
 
-      const horseOrigin = horseItem?.basePos ? horseItem.basePos.clone() : new THREE.Vector3(cPos.x, 0, cPos.z);
-      const partnerOrigin = partnerItem?.basePos ? partnerItem.basePos.clone() : new THREE.Vector3(kPos.x + 2.0, 0, kPos.z + 2.0);
+      const horseOrigin = horseItem?.basePos
+        ? new THREE.Vector3(horseItem.basePos.x, 0, horseItem.basePos.z)
+        : new THREE.Vector3(cPos.x, 0, cPos.z);
+      const partnerOrigin = partnerItem?.basePos
+        ? new THREE.Vector3(partnerItem.basePos.x, 0, partnerItem.basePos.z)
+        : new THREE.Vector3(kPos.x + 2.0, 0, kPos.z + 2.0);
+      const kingOrigin = kingItem?.basePos
+        ? new THREE.Vector3(kingItem.basePos.x, 0, kingItem.basePos.z)
+        : new THREE.Vector3(kPos.x, 0, kPos.z);
 
       // 空中对峙点：“将（帅）”在左 (-1.38, 2.25, 0.2)，助战棋子在右 (+1.38, 2.25, 0.2)
       const kingStandoffPos = new THREE.Vector3(-1.38, 2.25, 0.2);
       const partnerStandoffPos = new THREE.Vector3(1.38, 2.25, 0.2);
       const horseTransformPos = new THREE.Vector3(3.55, 2.35, 0.2);
 
-      // 为对峙双子各自增加醒目的战气背光圆环，衬托黑色“將”或红色“帥”在空中清晰夺目
-      const kingBackHalo = new THREE.Mesh(new THREE.RingGeometry(0.62, 0.92, 32), crimsonGlowMat.clone());
-      const partnerBackHalo = new THREE.Mesh(new THREE.RingGeometry(0.62, 0.92, 32), goldGlowMat.clone());
+      // 为对峙双子各自增加醒目的战气背光圆环（外径 1.18 大于放大后棋子半径 0.84），衬托“將（帥）”与助战子在空中清晰夺目
+      const kingBackHalo = new THREE.Mesh(new THREE.RingGeometry(0.80, 1.18, 36), crimsonGlowMat.clone());
+      const partnerBackHalo = new THREE.Mesh(new THREE.RingGeometry(0.80, 1.18, 36), goldGlowMat.clone());
       kingBackHalo.visible = false;
       partnerBackHalo.visible = false;
       group.add(kingBackHalo, partnerBackHalo);
 
       const clashEnergyGroup = new THREE.Group();
       clashEnergyGroup.position.set(0, 2.25, 0.2);
-      const clashCore = new THREE.Mesh(new THREE.OctahedronGeometry(0.24, 1), goldGlowMat.clone());
-      const clashRing = new THREE.Mesh(new THREE.TorusGeometry(0.48, 0.038, 10, 28), crimsonGlowMat.clone());
+      const clashCore = new THREE.Mesh(new THREE.OctahedronGeometry(0.26, 1), goldGlowMat.clone());
+      const clashRing = new THREE.Mesh(new THREE.TorusGeometry(0.52, 0.042, 10, 28), crimsonGlowMat.clone());
       clashRing.rotation.y = Math.PI / 2;
-      const clashBeam = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 1.45, 10), goldGlowMat.clone());
-      clashBeam.rotation.z = Math.PI / 2;
-      clashEnergyGroup.add(clashCore, clashRing, clashBeam);
+      // 左右对波光束：左侧赤红战气波（连接左端“将（帅）”）与右侧金芒战气波（连接右端助战棋子）在中心激撞
+      const leftKingBeam = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.09, 0.96, 12), crimsonGlowMat.clone());
+      leftKingBeam.rotation.z = Math.PI / 2;
+      leftKingBeam.position.x = -0.48;
+      const rightPartnerBeam = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.055, 0.96, 12), goldGlowMat.clone());
+      rightPartnerBeam.rotation.z = Math.PI / 2;
+      rightPartnerBeam.position.x = 0.48;
+      clashEnergyGroup.add(clashCore, clashRing, leftKingBeam, rightPartnerBeam);
       clashEnergyGroup.visible = false;
       group.add(clashEnergyGroup);
 
@@ -18752,7 +18808,7 @@ Object.assign(Xiangqi3DApp.prototype, {
         const activeStandoff = standoffInT * (1 - returnBoardT);
 
         // 1. 另一枚助战棋子飞至右侧对峙点，字面朝向观众倾斜 (rx = Math.PI * 0.38) 并朝左微倾与“将（帅）”正面对峙！
-        if (partnerItem?.mesh && partnerItem !== horseItem) {
+        if (partnerItem?.mesh && partnerItem !== horseItem && partnerItem !== kingItem) {
           partnerItem.customDriven = true;
           const pCur = new THREE.Vector3().lerpVectors(partnerOrigin, partnerStandoffPos, activeStandoff);
           const tremor = (p > 0.18 && p < 0.65) ? Math.sin(p * 85) * 0.06 : 0;
@@ -18770,14 +18826,15 @@ Object.assign(Xiangqi3DApp.prototype, {
             activeStandoff * 0.72,
             0xfbbf24
           );
-          partnerBackHalo.visible = p > 0.12 && p < 0.84;
-          partnerBackHalo.position.set(pCur.x + tremor, pCur.y + 0.2, pCur.z - 0.15);
-          partnerBackHalo.scale.setScalar((0.9 + Math.sin(p * 32) * 0.12) * fade);
+          partnerBackHalo.visible = p > 0.10 && p < 0.84;
+          partnerBackHalo.position.set(pCur.x + tremor, pCur.y + 0.16, pCur.z - 0.12);
+          partnerBackHalo.rotation.set(activeStandoff * (Math.PI * 0.38) - Math.PI / 2, -activeStandoff * 0.28, activeStandoff * 0.16);
+          partnerBackHalo.scale.setScalar((0.95 + Math.sin(p * 32) * 0.12) * fade);
         } else {
           partnerBackHalo.visible = false;
         }
 
-        if (p > 0.16 && p < 0.65) {
+        if (p > 0.14 && p < 0.65) {
           clashEnergyGroup.visible = true;
           const pulse = 0.85 + Math.sin(p * 48) * 0.25;
           clashCore.scale.setScalar(pulse * fade);
@@ -18849,11 +18906,11 @@ Object.assign(Xiangqi3DApp.prototype, {
           }
         }
 
-        // 3. “将（帅）”在空中左端对峙（正面朝向观众立起 rx = Math.PI * 0.38，配赤金背光环确保 100% 清晰可见），p=0.65 被建模马迎面撞飞！
+        // 3. “将（帅）”在空中左端对峙（使用具备完整 y=0 坐标的 kingOrigin 插值至 kingStandoffPos，杜绝 y=NaN 消失问题），p=0.65 被建模马迎面撞飞！
         if (kingItem?.mesh) {
           kingItem.customDriven = true;
           if (p < 0.65) {
-            const kCur = new THREE.Vector3().lerpVectors(kPos, kingStandoffPos, standoffInT);
+            const kCur = new THREE.Vector3().lerpVectors(kingOrigin, kingStandoffPos, standoffInT);
             const tremor = p > 0.18 ? Math.sin(p * 85) * 0.06 : 0;
             this.setPiece3DPose(
               kingItem.mesh,
@@ -18869,7 +18926,8 @@ Object.assign(Xiangqi3DApp.prototype, {
               0xef4444
             );
             kingBackHalo.visible = p > 0.10;
-            kingBackHalo.position.set(kCur.x - tremor, kCur.y + 0.2, kCur.z - 0.15);
+            kingBackHalo.position.set(kCur.x - tremor, kCur.y + 0.16, kCur.z - 0.12);
+            kingBackHalo.rotation.set(standoffInT * (Math.PI * 0.38) - Math.PI / 2, standoffInT * 0.28, -standoffInT * 0.16);
             kingBackHalo.scale.setScalar((0.95 + Math.cos(p * 32) * 0.12) * fade);
           } else if (p < 0.85) {
             kingBackHalo.visible = false;
@@ -20476,13 +20534,16 @@ Object.assign(Xiangqi3DApp.prototype, {
 
     const kCoord = pattern.kingCoord || { r: 0, c: 4 };
     const rCoord = pattern.royalCoord || { r: 9, c: 4 };
-    const kPos = gridToWorld(kCoord.r, kCoord.c);
-    const rPos = gridToWorld(rCoord.r, rCoord.c);
+    const kPosRaw = gridToWorld(kCoord.r, kCoord.c);
+    const rPosRaw = gridToWorld(rCoord.r, rCoord.c);
+    const kPos = new THREE.Vector3(kPosRaw.x, 0, kPosRaw.z);
+    const rPos = new THREE.Vector3(rPosRaw.x, 0, rPosRaw.z);
     const lastRec = this.engine?.history?.[this.engine.history.length - 1];
     const checker = (pattern.checkers && pattern.checkers[0])
       ? pattern.checkers[0]
       : (lastRec?.move ? { r: lastRec.move.tr, c: lastRec.move.tc, char: lastRec.piece?.char || '俥' } : { r: Math.min(9, kCoord.r + 2), c: kCoord.c, char: '俥' });
-    const cPos = gridToWorld(checker.r, checker.c);
+    const cPosRaw = gridToWorld(checker.r, checker.c);
+    const cPos = new THREE.Vector3(cPosRaw.x, 0, cPosRaw.z);
 
     this._activeCheckerMeshes = [];
     const highlightList = Array.isArray(pattern.highlightCoords) && pattern.highlightCoords.length > 0
@@ -20500,7 +20561,7 @@ Object.assign(Xiangqi3DApp.prototype, {
           mesh: m,
           piece: p,
           coord: { r: coord.r, c: coord.c },
-          basePos: m.position.clone(),
+          basePos: new THREE.Vector3(m.position.x, 0, m.position.z),
           isKing,
           isAttacker,
           customDriven: false
@@ -20509,6 +20570,16 @@ Object.assign(Xiangqi3DApp.prototype, {
     };
 
     addInteractivePieceByCoord(kCoord, 'king');
+    if (!this._activeCheckerMeshes.some(x => x.isKing) && this.engine?.board) {
+      for (let r = 0; r < 10; r++) {
+        for (let c = 0; c < 9; c++) {
+          const p = this.engine.board[r][c];
+          if (p && p.type === 'k' && p.color !== winnerColor) {
+            addInteractivePieceByCoord({ r, c }, 'king');
+          }
+        }
+      }
+    }
     if (Array.isArray(pattern.checkers)) {
       pattern.checkers.forEach(ch => addInteractivePieceByCoord(ch));
     }
