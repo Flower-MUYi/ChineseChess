@@ -614,6 +614,7 @@ Object.assign(Xiangqi3DApp.prototype, {
   },
 
   clearCheckmateVFX() {
+    this.sfx?.stopAllVFXSounds?.();
     this._vfxCustomColorGrading = false;
     this.restoreOriginalWorldSnapshot();
     this.clearCheckmateHighlights();
@@ -3627,9 +3628,211 @@ Object.assign(Xiangqi3DApp.prototype, {
     this.checkmateVFXGroup.add(group);
     const slashTex = typeof getSlashArcTexture === 'function' ? getSlashArcTexture() : null;
 
+    const firedAudioCues = new Set();
+    const dispatchVFXAudioCues = (p) => {
+      if (!this.sfx || p >= 0.97) return;
+      const cue = (minP, key, cb) => {
+        if (p >= minP && !firedAudioCues.has(key)) {
+          firedAudioCues.add(key);
+          cb();
+        }
+      };
+
+      if (vfxType === 'double_chariot') {
+        cue(0.02, 'dc_w1', () => this.sfx.playVFXWindWhoosh?.(260, 580, 0.48, 0.48, -0.45));
+        cue(0.16, 'dc_w2', () => this.sfx.playVFXWindWhoosh?.(300, 640, 0.45, 0.48, 0.45));
+        cue(0.33, 'dc_morph', () => {
+          this.sfx.playVFXMorphFlash?.(0.72, 0.96);
+          this.sfx.playVFXPieceStepThud?.(0.65, 0.85);
+        });
+        cue(0.44, 'dc_charge', () => this.sfx.playVFXChariotRumble?.(1.30, 0.78));
+        cue(0.57, 'dc_slash', () => this.sfx.playVFXSwordCleave?.(0.82));
+        cue(0.80, 'dc_back', () => this.sfx.playVFXWindWhoosh?.(420, 200, 0.36, 0.38, 0));
+      } else if (vfxType === 'smothered_palace') {
+        cue(0.01, 'sp_in', () => this.sfx.playVFXWindWhoosh?.(320, 210, 0.34, 0.42, 0));
+        cue(0.12, 'sp_s0', () => this.sfx.playVFXPieceStepThud?.(0.58, 1.00));
+        cue(0.15, 'sp_w0', () => this.sfx.playVFXStoneWallRise?.(0.95, 0.78));
+        cue(0.19, 'sp_b0', () => this.sfx.playVFXPieceStepThud?.(0.48, 0.92));
+        cue(0.26, 'sp_s1', () => this.sfx.playVFXPieceStepThud?.(0.58, 1.04));
+        cue(0.29, 'sp_w1', () => this.sfx.playVFXStoneWallRise?.(1.04, 0.80));
+        cue(0.33, 'sp_b1', () => this.sfx.playVFXPieceStepThud?.(0.48, 0.95));
+        cue(0.40, 'sp_s2', () => this.sfx.playVFXPieceStepThud?.(0.58, 1.08));
+        cue(0.43, 'sp_w2', () => this.sfx.playVFXStoneWallRise?.(1.12, 0.82));
+        cue(0.47, 'sp_b2', () => this.sfx.playVFXPieceStepThud?.(0.48, 0.98));
+        cue(0.54, 'sp_s3', () => this.sfx.playVFXPieceStepThud?.(0.58, 1.12));
+        cue(0.57, 'sp_w3', () => this.sfx.playVFXStoneWallRise?.(1.20, 0.85));
+        cue(0.68, 'sp_tremble', () => this.sfx.playVFXPanicTremble?.(0.58, 0.62));
+        cue(0.74, 'sp_roof_fall', () => this.sfx.playVFXWindWhoosh?.(620, 140, 0.35, 0.70, 0));
+        cue(0.80, 'sp_roof_hit', () => this.sfx.playVFXIronBoltSlam?.(0.90, 0.82));
+      } else if (vfxType === 'royal_gaze') {
+        cue(0.02, 'rg_rise', () => this.sfx.playVFXWindWhoosh?.(240, 520, 0.45, 0.45, 0));
+        cue(0.18, 'rg_morph', () => {
+          this.sfx.playVFXMorphFlash?.(0.76, 1.0);
+          this.sfx.playVFXSwordUnsheathe?.(0.85);
+        });
+        cue(0.36, 'rg_walk', () => this.sfx.playVFXArmorFootsteps?.(5, 1.58, 0.72));
+        cue(0.68, 'rg_cleave', () => this.sfx.playVFXSwordCleave?.(0.96));
+        cue(0.85, 'rg_back', () => this.sfx.playVFXWindWhoosh?.(380, 190, 0.35, 0.36, 0));
+      } else if (vfxType === 'double_cannon') {
+        cue(0.02, 'dcan_leap', () => this.sfx.playVFXWindWhoosh?.(260, 580, 0.45, 0.48, 0));
+        cue(0.22, 'dcan_fuse', () => {
+          this.sfx.playVFXMorphFlash?.(0.74, 0.94);
+          this.sfx.playVFXMechanicalAssemble?.(0.84);
+        });
+        cue(0.39, 'dcan_load', () => this.sfx.playVFXAmmoLoad?.(0.85));
+        cue(0.56, 'dcan_drop', () => this.sfx.playVFXWindWhoosh?.(480, 140, 0.35, 0.52, 0));
+        cue(0.68, 'dcan_land', () => this.sfx.playVFXPieceStepThud?.(0.75, 0.78));
+        cue(0.72, 'dcan_fire', () => this.sfx.playVFXCannonFire?.(1.38, 0.96));
+      } else if (vfxType === 'horse_cannon') {
+        cue(0.02, 'hc_leap', () => this.sfx.playVFXWindWhoosh?.(280, 580, 0.42, 0.48, 0));
+        cue(0.14, 'hc_morph', () => {
+          this.sfx.playVFXMorphFlash?.(0.74, 1.04);
+          this.sfx.playVFXMechanicalAssemble?.(0.70);
+        });
+        cue(0.30, 'hc_vault', () => {
+          this.sfx.playVFXHoofGallop?.(2, 0.65, 0.78);
+          this.sfx.playVFXWindWhoosh?.(520, 220, 0.45, 0.52, 0);
+        });
+        cue(0.58, 'hc_land', () => this.sfx.playVFXPieceStepThud?.(0.72, 0.85));
+        cue(0.69, 'hc_fire', () => this.sfx.playVFXCannonFire?.(1.30, 0.94));
+      } else if (vfxType === 'iron_bolt') {
+        cue(0.01, 'ib_room', () => this.sfx.playVFXStoneWallRise?.(0.86, 0.82));
+        cue(0.18, 'ib_d0', () => this.sfx.playVFXPieceStepThud?.(0.65, 0.82));
+        cue(0.23, 'ib_b0', () => this.sfx.playVFXIronBoltSlam?.(0.84, 0.95));
+        cue(0.305, 'ib_d1', () => this.sfx.playVFXPieceStepThud?.(0.65, 0.88));
+        cue(0.355, 'ib_b1', () => this.sfx.playVFXIronBoltSlam?.(0.86, 1.02));
+        cue(0.43, 'ib_d2', () => this.sfx.playVFXPieceStepThud?.(0.65, 0.94));
+        cue(0.48, 'ib_b2', () => this.sfx.playVFXIronBoltSlam?.(0.88, 1.08));
+        cue(0.555, 'ib_d3', () => this.sfx.playVFXPieceStepThud?.(0.65, 1.00));
+        cue(0.605, 'ib_b3', () => this.sfx.playVFXIronBoltSlam?.(0.92, 1.15));
+        cue(0.65, 'ib_chains', () => this.sfx.playVFXChainPull?.(0.75, 0.90));
+      } else if (vfxType === 'side_tiger') {
+        cue(0.02, 'st_crouch', () => {
+          this.sfx.playVFXTigerRoar?.(0.84, false);
+          this.sfx.playVFXWindWhoosh?.(260, 480, 0.38, 0.42, 0);
+        });
+        cue(0.18, 'st_j1', () => this.sfx.playVFXWindWhoosh?.(240, 520, 0.32, 0.55, -0.3));
+        cue(0.34, 'st_p1', () => this.sfx.playVFXPieceStepThud?.(0.78, 0.95));
+        cue(0.39, 'st_j2', () => this.sfx.playVFXWindWhoosh?.(280, 620, 0.32, 0.58, 0.25));
+        cue(0.52, 'st_p2', () => this.sfx.playVFXPieceStepThud?.(0.82, 1.08));
+        cue(0.57, 'st_pounce', () => this.sfx.playVFXTigerRoar?.(0.95, true));
+      } else if (vfxType === 'octagon_horse') {
+        cue(0.02, 'oh_leap', () => this.sfx.playVFXWindWhoosh?.(260, 580, 0.42, 0.48, 0));
+        cue(0.12, 'oh_morph', () => {
+          this.sfx.playVFXMorphFlash?.(0.75, 1.0);
+          this.sfx.playVFXSwordUnsheathe?.(0.80);
+        });
+        cue(0.24, 'oh_gallop', () => this.sfx.playVFXHoofGallop?.(5, 1.90, 0.80));
+        cue(0.62, 'oh_throw', () => this.sfx.playVFXSpinningWeaponThrow?.(1.02, 0.85));
+        cue(0.80, 'oh_hit', () => this.sfx.playVFXSwordCleave?.(0.92));
+      } else if (vfxType === 'fishing_horse') {
+        cue(0.02, 'fh_sea', () => this.sfx.playVFXOceanSwirl?.(1.30, 0.65));
+        cue(0.28, 'fh_plunge', () => this.sfx.playVFXWaterPlunge?.(0.88));
+        cue(0.54, 'fh_emerge', () => {
+          this.sfx.playVFXWaterSplash?.(0.92);
+          this.sfx.playVFXChainPull?.(1.10, 0.85);
+          this.sfx.playVFXHoofGallop?.(3, 1.05, 0.78);
+        });
+      } else if (vfxType === 'standing_horse_chariot') {
+        cue(0.01, 'shc_leap', () => this.sfx.playVFXWindWhoosh?.(240, 560, 0.48, 0.55, 0));
+        cue(0.16, 'shc_hmorph', () => {
+          this.sfx.playVFXMorphFlash?.(0.72, 1.05);
+          this.sfx.playVFXHoofGallop?.(2, 0.55, 0.75);
+        });
+        cue(0.26, 'shc_sun', () => this.sfx.playVFXMorphFlash?.(0.75, 0.78));
+        cue(0.48, 'shc_rush', () => {
+          this.sfx.playVFXMorphFlash?.(0.78, 0.92);
+          this.sfx.playVFXChariotRumble?.(1.20, 0.84);
+        });
+        cue(0.59, 'shc_hrush', () => this.sfx.playVFXHoofGallop?.(3, 0.85, 0.82));
+      } else if (vfxType === 'double_check') {
+        cue(0.02, 'dchk_throw', () => this.sfx.playVFXSpinningWeaponThrow?.(1.65, 0.84));
+        cue(0.36, 'dchk_fuse', () => {
+          this.sfx.playVFXMorphFlash?.(0.86, 0.90);
+          this.sfx.playVFXSwordUnsheathe?.(0.92);
+        });
+        cue(0.54, 'dchk_plunge', () => this.sfx.playVFXWindWhoosh?.(920, 140, 0.82, 0.88, 0));
+        cue(0.69, 'dchk_cleave', () => this.sfx.playVFXSwordCleave?.(0.98));
+      } else if (vfxType === 'chariot_cannon_clamp') {
+        cue(0.02, 'ccc_spiral', () => this.sfx.playVFXWindWhoosh?.(240, 620, 0.65, 0.52, 0));
+        cue(0.20, 'ccc_morph', () => this.sfx.playVFXMorphFlash?.(0.74, 0.96));
+        cue(0.36, 'ccc_mech', () => this.sfx.playVFXMechanicalAssemble?.(0.84));
+        cue(0.45, 'ccc_dock', () => {
+          this.sfx.playVFXIronBoltSlam?.(0.88, 0.90);
+          this.sfx.playVFXAmmoLoad?.(0.78);
+        });
+        cue(0.56, 'ccc_drop', () => {
+          this.sfx.playVFXWindWhoosh?.(520, 150, 0.42, 0.55, 0);
+          this.sfx.playVFXChariotRumble?.(0.75, 0.72);
+        });
+        cue(0.72, 'ccc_fire', () => this.sfx.playVFXCannonFire?.(1.42, 0.96));
+      } else if (vfxType === 'trough_horse') {
+        cue(0.02, 'th_fly', () => this.sfx.playVFXWindWhoosh?.(260, 520, 0.45, 0.48, 0));
+        cue(0.14, 'th_clash', () => {
+          this.sfx.playVFXEnergyBeamClash?.(2.40, 0.80);
+          this.sfx.playVFXWindWhoosh?.(300, 640, 0.85, 0.42, 0.35);
+        });
+        cue(0.42, 'th_morph', () => this.sfx.playVFXMorphFlash?.(0.78, 1.04));
+        cue(0.56, 'th_charge', () => {
+          this.sfx.playVFXHoofGallop?.(3, 0.55, 0.88);
+          this.sfx.playVFXWindWhoosh?.(580, 220, 0.40, 0.72, -0.3);
+        });
+      } else if (vfxType === 'smothered_kill') {
+        cue(0.01, 'sk_soar', () => this.sfx.playVFXWindWhoosh?.(220, 680, 0.55, 0.55, 0));
+        cue(0.14, 'sk_ball', () => {
+          this.sfx.playVFXMorphFlash?.(0.76, 0.86);
+          this.sfx.playVFXChainPull?.(0.55, 0.72);
+        });
+        cue(0.28, 'sk_cage', () => {
+          this.sfx.playVFXStoneWallRise?.(1.12, 0.82);
+          this.sfx.playVFXIronBoltSlam?.(0.84, 1.05);
+        });
+        cue(0.34, 'sk_b0', () => this.sfx.playVFXPieceStepThud?.(0.68, 1.00));
+        cue(0.41, 'sk_b1', () => this.sfx.playVFXPieceStepThud?.(0.68, 1.05));
+        cue(0.48, 'sk_b2', () => this.sfx.playVFXPieceStepThud?.(0.68, 1.10));
+        cue(0.55, 'sk_b3', () => this.sfx.playVFXPieceStepThud?.(0.68, 1.15));
+        cue(0.62, 'sk_b4', () => this.sfx.playVFXPieceStepThud?.(0.68, 1.20));
+        cue(0.68, 'sk_fall', () => this.sfx.playVFXWindWhoosh?.(720, 110, 0.42, 0.85, 0));
+      } else if (vfxType === 'heaven_earth_cannon') {
+        cue(0.01, 'hec_land', () => this.sfx.playVFXPieceStepThud?.(0.72, 0.90));
+        cue(0.12, 'hec_spiral', () => this.sfx.playVFXWindWhoosh?.(220, 760, 1.20, 0.62, 0));
+        cue(0.28, 'hec_sun', () => {
+          this.sfx.playVFXSolarLavaRumble?.(2.60, 0.88);
+          this.sfx.playVFXHeavyExplosion?.(1.35, 0.82);
+        });
+        cue(0.43, 'hec_pass', () => this.sfx.playVFXMeteorWhistlePass?.(0.95));
+        cue(0.56, 'hec_rain', () => this.sfx.playVFXMeteorRainImpacts?.(1.15, 0.84));
+        cue(0.71, 'hec_blocker', () => this.sfx.playVFXHeavyExplosion?.(1.80, 0.98));
+        cue(0.78, 'hec_whiteout', () => {
+          this.sfx.playVFXSolarLavaRumble?.(1.45, 0.95);
+          this.sfx.playVFXHeavyExplosion?.(1.95, 1.0);
+        });
+      } else if (vfxType === 'stalemate_trap') {
+        cue(0.02, 'st_walls', () => this.sfx.playVFXStoneWallRise?.(0.88, 0.85));
+        cue(0.16, 'st_hit0', () => this.sfx.playVFXPieceStepThud?.(0.68, 0.92));
+        cue(0.25, 'st_hit1', () => this.sfx.playVFXPieceStepThud?.(0.68, 0.96));
+        cue(0.34, 'st_hit2', () => this.sfx.playVFXPieceStepThud?.(0.68, 1.00));
+        cue(0.43, 'st_hit3', () => this.sfx.playVFXPieceStepThud?.(0.68, 1.04));
+        cue(0.52, 'st_hit4', () => this.sfx.playVFXPieceStepThud?.(0.68, 1.08));
+        cue(0.60, 'st_hit5', () => this.sfx.playVFXPieceStepThud?.(0.68, 1.12));
+        cue(0.68, 'st_hit6', () => this.sfx.playVFXPieceStepThud?.(0.68, 1.16));
+        cue(0.80, 'st_flip', () => this.sfx.playVFXWindWhoosh?.(360, 150, 0.32, 0.52, 0));
+        cue(0.86, 'st_flat', () => this.sfx.playVFXPieceStepThud?.(0.85, 0.75));
+      } else if (vfxType === 'frost_lotus_strike' || vfxType === 'sea_bottom_moon') {
+        cue(0.02, 'fls_wave', () => this.sfx.playVFXOceanSwirl?.(1.75, 0.76));
+        cue(0.30, 'fls_morph', () => {
+          this.sfx.playVFXMorphFlash?.(0.78, 1.12);
+          this.sfx.playHint?.();
+        });
+        cue(0.54, 'fls_splash', () => this.sfx.playVFXWaterSplash?.(0.92));
+        cue(0.76, 'fls_land', () => this.sfx.playVFXPieceStepThud?.(0.75, 0.85));
+      }
+    };
+
     const wrapUpdater = (fn) => {
       const wrapped = (p, dt, fade = 1) => {
         if (!group.visible && fade > 0.001) group.visible = true;
+        dispatchVFXAudioCues(p);
         fn(p, dt, fade);
       };
       wrapped.spectacleGroup = group;
@@ -3946,6 +4149,7 @@ Object.assign(Xiangqi3DApp.prototype, {
           if (!soundTriggered) {
             soundTriggered = true;
             this.cameraShake = Math.max(this.cameraShake || 0, 0.46 * scale);
+            this.sfx?.playVFXHeavyExplosion?.(scale, 0.92);
           }
           const fastExpand = 1 - Math.pow(1 - localP, 3);
           const alpha = Math.max(0, (1 - localP) * fade);
@@ -9040,6 +9244,7 @@ Object.assign(Xiangqi3DApp.prototype, {
             stage3Triggered = true;
             this.triggerScreenFlash();
             this.cameraShake = 0.40;
+            this.sfx?.playVictorySeal?.(0);
             spawn3DBurst(kPos.x, 0.35, kPos.z, atmos.rimHex, atmos.pointHex, 24);
             this.spawnShatterFragments?.(kPos.x, kPos.z, winnerColor === RED ? BLACK : RED);
           }
