@@ -901,7 +901,7 @@ Object.assign(Xiangqi3DApp.prototype, {
     ctx.fillStyle = '#fef3c7';
     ctx.shadowColor = '#000000';
     ctx.shadowBlur = 8;
-    ctx.fillText(`◆  ${subBannerText}  ◆`, 0, 1);
+    ctx.fillText(`◆  ${subBannerText}  ◆`, 0, 1, barW * 0.90);
     ctx.restore();
   },
 
@@ -992,17 +992,126 @@ Object.assign(Xiangqi3DApp.prototype, {
       ctx.fillStyle = '#fef3c7';
       ctx.shadowColor = '#000000';
       ctx.shadowBlur = 10;
-      ctx.fillText(`◆ ${subText} ◆`, 0, fontSize * 0.78);
+      ctx.fillText(`◆ ${subText} ◆`, 0, fontSize * 0.78, Math.max(220, glowW * 0.92));
     }
     ctx.restore();
   },
 
-  /*************************************************************************
-   * REUSABLE MULTI-PART ARTICULATED 3D MODELS FOR CHECKMATE CUTSCENES
-  /*************************************************************************
-   * ULTRA-DETAILED MULTI-PART ARTICULATED 3D MODELS FOR CHECKMATE CUTSCENES
-   *************************************************************************/
+  /**
+   * 十七大绝杀动画节奏变速控制器 (Rhythm-Based Dynamic Speed Modulation Engine)
+   * 支持所有绝杀动画按照各自戏剧张力节奏自动「蓄力/对峙/拼装慢放 + 突进/劈斩/轰击快放」，
+   * 并可通过 this.vfxPlaybackSpeedMultiplier 全局调节快慢倍率。
+   */
+  getVFXRhythmProfile(vfxType) {
+    const profiles = {
+      // 天地炮：仰视太阳与圆周云环散开慢放 -> 中心碎片砸地遮屏快放 -> 远小近大陨石雨加速 -> 终局熔岩球自身气浪变亮、地震飞石与渐变全白凝重慢放
+      heaven_earth_cannon: {
+        totalDuration: 13.80,
+        stage2End: 12.60,
+        knots: [
+          [0.00, 0.00],
+          [0.10, 0.09],
+          [0.24, 0.22],
+          [0.44, 0.39], // 0.24->0.44 慢放 (0.85x): 从容展示白色太阳位于圆周云环中间、变熔岩球缓缓下坠且云朵沿圆周缓缓散开
+          [0.49, 0.472], // 0.44->0.49 快放 (1.64x): 大碎片极速穿过屏幕中心砸中近处地板掀起气浪和石块遮屏切镜！
+          [0.72, 0.74], // 0.49->0.72 紧凑加速 (1.17x): 64颗远小近大碎片雨密集砸落、激起小石子与连续地震震屏
+          [0.84, 0.82], // 0.72->0.84 慢放 (0.67x): 近景巨型熔岩球压顶落地、气浪从熔岩球自身变亮并激起大地震与满屏飞石
+          [1.00, 1.00]  // 0.84->1.00 渐进全白 (1.12x): 整个屏幕在飞石与气浪中慢慢到全白
+        ]
+      },
+      // 双将：飞掷升空快 -> 空中飞行调姿对齐与多部件机械拼装慢放特写 -> 雷霆垂直坠落劈斩快放
+      double_check: {
+        totalDuration: 7.50,
+        stage2End: 6.40,
+        knots: [
+          [0.00, 0.00],
+          [0.18, 0.20], // 掷出旋转升空 (1.11x)
+          [0.34, 0.33], // 空中减速调整姿态对齐慢放 (0.81x)
+          [0.68, 0.61], // 多部件机械拼装特写慢放 (0.82x)，清晰展现双武器合拢与剑芯/护手/六翼/剑首组装
+          [0.78, 0.76], // 巨剑雷霆下劈极速快放 (1.50x)
+          [1.00, 1.00]
+        ]
+      },
+      // 卧槽马：对波僵持慢放 -> 化马蓄力慢放 -> 铁骑冲锋撞飞快放
+      trough_horse: {
+        totalDuration: 7.10,
+        stage2End: 6.00,
+        knots: [
+          [0.00, 0.00],
+          [0.14, 0.16],
+          [0.44, 0.40], // 气功波对峙僵持慢放 (0.80x)
+          [0.58, 0.54], // 化为战马昂首蓄力
+          [0.74, 0.78], // 烈焰冲锋撞飞快放 (1.50x)
+          [1.00, 1.00]
+        ]
+      },
+      // 夹车炮：空中变形组装慢放 -> 落地炮击快放
+      chariot_cannon_clamp: {
+        totalDuration: 7.20,
+        stage2End: 6.10,
+        knots: [
+          [0.00, 0.00],
+          [0.20, 0.22],
+          [0.58, 0.54], // 战车与巨炮机械组装对接慢放 (0.84x)
+          [0.76, 0.78], // 重炮轰击快放 (1.33x)
+          [1.00, 1.00]
+        ]
+      },
+      // 双车错：战车变形慢放 -> 双车交错斩击快放
+      double_chariot: {
+        totalDuration: 6.90,
+        stage2End: 5.80,
+        knots: [
+          [0.00, 0.00],
+          [0.36, 0.30], // 化车蓄势慢放 (0.83x)
+          [0.64, 0.72], // 双车交错冲杀快放 (1.50x)
+          [1.00, 1.00]
+        ]
+      },
+      // 侧面虎：化虎蓄势慢放 -> 猛虎扑咬快放
+      side_tiger: {
+        totalDuration: 6.90,
+        stage2End: 5.80,
+        knots: [
+          [0.00, 0.00],
+          [0.38, 0.32], // 猛虎威压慢放 (0.84x)
+          [0.66, 0.74], // 猛虎飞扑撕裂快放 (1.50x)
+          [1.00, 1.00]
+        ]
+      }
+    };
 
+    return profiles[vfxType] || {
+      totalDuration: 6.80,
+      stage2End: 5.70,
+      knots: [
+        [0.00, 0.00],
+        [0.35, 0.29], // 前段亮相蓄力微慢放 (0.83x)
+        [0.70, 0.75], // 中段绝杀爆发快放 (1.31x)
+        [1.00, 1.00]  // 尾段余韵收束 (0.83x)
+      ]
+    };
+  },
+
+  applyVFXRhythmTimeWarp(vfxType, rawP) {
+    const clamped = Math.max(0, Math.min(1, rawP));
+    const prof = this.getVFXRhythmProfile(vfxType);
+    const knots = prof.knots;
+    for (let i = 0; i < knots.length - 1; i++) {
+      const [t0, p0] = knots[i];
+      const [t1, p1] = knots[i + 1];
+      if (clamped >= t0 && clamped <= t1) {
+        const span = Math.max(1e-5, t1 - t0);
+        const localU = (clamped - t0) / span;
+        // 使用平滑余弦混合，保证分段节点处速度连续不突兀
+        const smoothU = localU * 0.78 + (0.5 - 0.5 * Math.cos(localU * Math.PI)) * 0.22;
+        const warpedP = p0 + (p1 - p0) * smoothU;
+        const avgSlope = (p1 - p0) / span;
+        return { p: Math.max(0, Math.min(1, warpedP)), rate: Math.max(0.35, Math.min(2.4, avgSlope)) };
+      }
+    }
+    return { p: clamped, rate: 1.0 };
+  },
 
   triggerCheckmateVFX(pattern, winnerColor) {
     this.clearCheckmateVFX();
@@ -1019,9 +1128,11 @@ Object.assign(Xiangqi3DApp.prototype, {
 
     this.sfx.playCheckmateVFXSound(vfxType);
 
-    const TOTAL_DURATION = vfxType === 'heaven_earth_cannon' ? 8.60 : 6.80;
-    const STAGE1_END = 0.45;
-    const STAGE2_END = vfxType === 'heaven_earth_cannon' ? 7.55 : 5.70;
+    const rhythmProf = this.getVFXRhythmProfile(vfxType);
+    const speedScale = Math.max(0.5, Math.min(2.0, Number(this.vfxPlaybackSpeedMultiplier) || 1.0));
+    const TOTAL_DURATION = (rhythmProf.totalDuration || 6.80) / speedScale;
+    const STAGE1_END = 0.45 / speedScale;
+    const STAGE2_END = (rhythmProf.stage2End || 5.70) / speedScale;
     this.vfxAtmosphereDuration = TOTAL_DURATION;
     this.vfxAtmosphereTimer = TOTAL_DURATION;
     this._vfxCustomColorGrading = true;
@@ -1287,7 +1398,9 @@ Object.assign(Xiangqi3DApp.prototype, {
             }
           });
         } else if (sec < STAGE2_END) {
-          const p2 = (sec - STAGE1_END) / (STAGE2_END - STAGE1_END);
+          const rawP2 = (sec - STAGE1_END) / (STAGE2_END - STAGE1_END);
+          const { p: p2, rate: rhythmRate } = this.applyVFXRhythmTimeWarp(vfxType, rawP2);
+          const warpedDt = dt * rhythmRate * speedScale;
           if (!stage2Triggered) {
             stage2Triggered = true;
             this.cameraShake = 0.24;
@@ -1299,9 +1412,9 @@ Object.assign(Xiangqi3DApp.prototype, {
           vfxContext.cameraOverride = null;
           this._activeCheckerMeshes.forEach(it => { it.customDriven = false; });
 
-          const enterT = Math.min(1, p2 / 0.08);
+          const enterT = Math.min(1, rawP2 / 0.08);
           const enterFade = 1 - Math.pow(1 - enterT, 3);
-          if (updateCustom3D) updateCustom3D(p2, dt, enterFade);
+          if (updateCustom3D) updateCustom3D(p2, warpedDt, enterFade);
 
           if (vfxContext.cameraOverride) {
             const ov = vfxContext.cameraOverride;
@@ -1424,6 +1537,17 @@ Object.assign(Xiangqi3DApp.prototype, {
               updateCustom3D.spectacleGroup.visible = false;
             } else {
               updateCustom3D(1.0, dt, fade3D);
+            }
+          }
+
+          // 若 Stage 2 结束时处于全白状态（如天地炮整个屏幕慢慢变到全白），在 Stage 3 前段平滑过渡消散
+          if (vfxContext.whiteoutAlpha > 0.01) {
+            const whiteHoldFade = Math.max(0, 1 - Math.max(0, (p3 - 0.12) / 0.68));
+            if (whiteHoldFade > 0.01) {
+              ctx.save();
+              ctx.fillStyle = `rgba(255, 253, 248, ${Math.min(1, vfxContext.whiteoutAlpha * whiteHoldFade)})`;
+              ctx.fillRect(0, 0, w, h);
+              ctx.restore();
             }
           }
 

@@ -90,6 +90,10 @@ p,
 }
 
 .seg-inferno-active {
+  background: linear-gradient(135deg, #7f1d1d 0%, #b91c1c 55%, #d97706 100%) !important;
+  color: #fffbeb !important;
+  box-shadow: 0 3px 12px rgba(185, 28, 28, 0.38);
+}
 
 .check-badge-pulse {
   animation: checkPulse 1.4s infinite ease-in-out;
@@ -557,7 +561,7 @@ header h1 { white-space: nowrap; }
     width: 100% !important; min-width: 0 !important;
     flex: none !important; gap: 9px !important;
   }
-  header > div.pointer-events-auto.md-card > div:first-child > div:first-child {
+  header > div.pointer-events-auto.md-card > div:first-child > #btn-scene-switcher {
     width: 34px !important; height: 34px !important; flex: 0 0 34px !important;
     border-radius: 10px !important;
   }
@@ -670,3 +674,36 @@ footer > div > button.hidden,
   z-index: 95 !important;
 }
 
+/* 移动端与响应式布局增强修复 (Mobile & Responsive Adaptation Safeguards) */
+.hidden {
+  display: none !important;
+}
+
+@media (max-width: 640px) {
+  #captured-row {
+    top: calc(7.65rem + env(safe-area-inset-top, 0px)) !important;
+    width: calc(100vw - 14px) !important;
+    max-width: 440px !important;
+  }
+  #btn-sound {
+    flex: 0 0 auto !important;
+    min-width: 38px !important;
+    padding: 6px 8px !important;
+  }
+  #gameover-modal > div,
+  #variant-select-modal > div,
+  #scene-select-modal > div,
+  #share-endgame-modal > div,
+  #wechat-share-modal > div {
+    max-height: calc(100dvh - 24px) !important;
+    overflow-y: auto !important;
+  }
+  #gameover-modal > div {
+    padding: 1.15rem 1rem !important;
+  }
+  .imperial-scroll-plaque {
+    min-width: 196px !important;
+    max-width: 90vw !important;
+    padding: 10px 22px !important;
+  }
+}

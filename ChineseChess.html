@@ -31,7 +31,59 @@
   <canvas id="checkmate-fx-canvas" class="pointer-events-none fixed inset-0 z-30 hidden"></canvas>
 
   <div id="action-burst-popup" data-theme="red" data-kind="capture"
-    class="pointer-events-none fixed left-1/2 top-[34%] -translate-x-1/2 -translate-y-1/2 z-40 hidden"></div>
+    class="pointer-events-none fixed left-1/2 top-[34%] -translate-x-1/2 -translate-y-1/2 z-40 hidden">
+    <div class="action-burst-stage relative flex flex-col items-center justify-center">
+      <svg class="action-burst-wings" viewBox="0 0 400 210" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M16 105 C72 42, 145 26, 200 32 C255 26, 328 42, 384 105 C328 164, 255 180, 200 174 C145 180, 72 164, 16 105 Z"
+          fill="url(#inkGrad)" stroke="url(#goldStroke)" stroke-width="2.6" />
+        <path d="M34 105 C82 54, 148 40, 200 45 C252 40, 318 54, 366 105 C318 152, 252 166, 200 161 C148 166, 82 152, 34 105 Z"
+          stroke="url(#goldStroke)" stroke-width="1.2" stroke-dasharray="5 4" opacity="0.72" />
+        <path d="M4 82 L68 98 L22 126 Z" fill="url(#goldStroke)" opacity="0.92" />
+        <path d="M396 82 L332 98 L378 126 Z" fill="url(#goldStroke)" opacity="0.92" />
+        <path d="M24 62 L78 84 L42 98 Z" fill="url(#crimsonWing)" opacity="0.82" />
+        <path d="M376 62 L322 84 L358 98 Z" fill="url(#crimsonWing)" opacity="0.82" />
+        <g class="action-burst-ring-spin">
+          <circle cx="200" cy="105" r="74" stroke="url(#goldStroke)" stroke-width="2.4" stroke-dasharray="10 6 3 6" opacity="0.88" />
+          <circle cx="200" cy="105" r="61" stroke="url(#goldStroke)" stroke-width="1.5" stroke-dasharray="4 5" opacity="0.68" />
+          <polygon points="200,25 205,35 195,35" fill="#fef08a" opacity="0.9" />
+          <polygon points="200,185 205,175 195,175" fill="#fef08a" opacity="0.9" />
+          <polygon points="120,105 130,100 130,110" fill="#fef08a" opacity="0.9" />
+          <polygon points="280,105 270,100 270,110" fill="#fef08a" opacity="0.9" />
+        </g>
+        <circle cx="200" cy="105" r="48" stroke="url(#goldStroke)" stroke-width="1.3" opacity="0.55" />
+        <defs>
+          <radialGradient id="inkGrad" cx="50%" cy="50%" r="56%">
+            <stop offset="0%" stop-color="#5c0c0c" stop-opacity="0.96" />
+            <stop offset="58%" stop-color="#1c1412" stop-opacity="0.93" />
+            <stop offset="100%" stop-color="#090707" stop-opacity="0" />
+          </radialGradient>
+          <linearGradient id="goldStroke" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#fffbeb" />
+            <stop offset="45%" stop-color="#fde047" />
+            <stop offset="80%" stop-color="#f59e0b" />
+            <stop offset="100%" stop-color="#b45309" />
+          </linearGradient>
+          <linearGradient id="crimsonWing" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="#ef4444" />
+            <stop offset="100%" stop-color="#f59e0b" />
+          </linearGradient>
+        </defs>
+      </svg>
+      <span class="burst-spark s1"></span>
+      <span class="burst-spark s2"></span>
+      <span class="burst-spark s3"></span>
+      <span class="burst-spark s4"></span>
+      <span class="burst-spark s5"></span>
+      <span class="burst-spark s6"></span>
+      <span class="burst-spark s7"></span>
+      <span class="burst-spark s8"></span>
+      <div class="relative z-10 flex flex-col items-center">
+        <span id="action-burst-seal" class="action-burst-seal serif-cn">锋芒夺子</span>
+        <div id="action-burst-char" class="action-burst-char serif-cn">吃</div>
+        <div id="action-burst-sub" class="action-burst-sub serif-cn">俥吃馬 · 破阵</div>
+      </div>
+    </div>
+  </div>
 
   <div id="center-callout"
     class="pointer-events-none fixed left-1/2 top-[30%] -translate-x-1/2 -translate-y-1/2 z-[95] hidden">
@@ -85,7 +137,7 @@
               象棋
             </span>
             <span id="scene-badge" onclick="window.gameApp.toggleSceneModal()" title="切换 3D 雅集场景"
-              class="hidden md:inline-block cursor-pointer serif-cn text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-900/10 text-amber-950 border border-amber-900/20">
+              class="inline-block cursor-pointer serif-cn text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-900/10 text-amber-950 border border-amber-900/20">
               翠竹石案
             </span>
           </div>
@@ -466,7 +518,7 @@
         class="md-btn serif-cn px-2 py-1.5 rounded-xl bg-amber-100/90 hover:bg-amber-200 text-amber-950 text-xs font-bold flex items-center gap-0.5 border border-amber-300/80"
         title="百宝箱 (残局 / 复盘 / 分享 / 绝杀)">
         <span class="material-symbols-rounded text-[18px]">apps</span>
-        <span class="hidden sm:inline">百宝箱</span>
+        <span>百宝箱</span>
       </button>
 
     </div>
@@ -720,7 +772,107 @@
     </div>
   </div>
 
-  <div id="vfx-drawer" class="fixed bottom-16 md:bottom-20 left-1/2 -translate-x-1/2 z-30 hidden w-[95vw] max-w-2xl"></div>
+  <div id="vfx-drawer" class="fixed bottom-16 md:bottom-20 left-1/2 -translate-x-1/2 z-30 hidden w-[95vw] max-w-2xl">
+    <div class="md-card brocade-panel rounded-3xl p-3.5 md:p-4 border border-amber-400/60 shadow-2xl">
+      <div class="flex items-center justify-between mb-2.5 px-1">
+        <div class="flex items-center gap-2">
+          <span class="material-symbols-rounded text-red-700 text-[20px]">flare</span>
+          <span class="serif-cn font-black text-slate-900 text-xs md:text-sm">古谱十七杀法 · 绝杀残局演武（点击摆局亲手绝杀）</span>
+        </div>
+        <button onclick="window.gameApp.toggleVFXDrawer(false)"
+          class="md-btn w-7 h-7 rounded-full bg-slate-200/80 hover:bg-slate-300 flex items-center justify-center text-slate-700">
+          <span class="material-symbols-rounded text-[16px]">close</span>
+        </button>
+      </div>
+      <div class="grid grid-cols-3 sm:grid-cols-6 gap-1.5 max-h-[42vh] overflow-y-auto pr-0.5">
+        <button onclick="window.gameApp.previewUltimateVFX('double_chariot', '双车错', '双车交错 · 裂空斩将')"
+          class="md-btn px-2 py-2 rounded-xl bg-slate-900/95 hover:bg-red-950 text-amber-100 text-xs font-bold serif-cn flex flex-col items-center gap-0.5 border border-amber-500/40">
+          <span>⚔️ 双车错</span>
+          <span class="text-[10px] text-amber-300/80 font-normal">双锋交叉斩</span>
+        </button>
+        <button onclick="window.gameApp.previewUltimateVFX('smothered_palace', '闷宫', '滚石封宫 · 困死中庭')"
+          class="md-btn px-2 py-2 rounded-xl bg-slate-900/95 hover:bg-red-950 text-amber-100 text-xs font-bold serif-cn flex flex-col items-center gap-0.5 border border-amber-500/40">
+          <span>🪨 闷宫</span>
+          <span class="text-[10px] text-amber-300/80 font-normal">巨石坠落封宫</span>
+        </button>
+        <button onclick="window.gameApp.previewUltimateVFX('royal_gaze', '对面笑', '金甲神将 · 白脸封喉')"
+          class="md-btn px-2 py-2 rounded-xl bg-slate-900/95 hover:bg-red-950 text-amber-100 text-xs font-bold serif-cn flex flex-col items-center gap-0.5 border border-amber-500/40">
+          <span>👑 对面笑</span>
+          <span class="text-[10px] text-amber-300/80 font-normal">帝王金剑斩将</span>
+        </button>
+        <button onclick="window.gameApp.previewUltimateVFX('double_cannon', '重炮', '双膛巨炮 · 毁天灭地')"
+          class="md-btn px-2 py-2 rounded-xl bg-slate-900/95 hover:bg-red-950 text-amber-100 text-xs font-bold serif-cn flex flex-col items-center gap-0.5 border border-amber-500/40">
+          <span>💣 重炮</span>
+          <span class="text-[10px] text-amber-300/80 font-normal">双管巨炮齐射</span>
+        </button>
+        <button onclick="window.gameApp.previewUltimateVFX('horse_cannon', '马后炮', '神驹踏阵 · 巨炮轰顶')"
+          class="md-btn px-2 py-2 rounded-xl bg-slate-900/95 hover:bg-red-950 text-amber-100 text-xs font-bold serif-cn flex flex-col items-center gap-0.5 border border-amber-500/40">
+          <span>🐎 马后炮</span>
+          <span class="text-[10px] text-amber-300/80 font-normal">战马火炮协同</span>
+        </button>
+        <button onclick="window.gameApp.previewUltimateVFX('iron_bolt', '铁门栓', '朱漆宫门 · 铁栓死锁')"
+          class="md-btn px-2 py-2 rounded-xl bg-slate-900/95 hover:bg-red-950 text-amber-100 text-xs font-bold serif-cn flex flex-col items-center gap-0.5 border border-amber-500/40">
+          <span>🚪 铁门栓</span>
+          <span class="text-[10px] text-amber-300/80 font-normal">朱门铁链上栓</span>
+        </button>
+        <button onclick="window.gameApp.previewUltimateVFX('side_tiger', '侧面虎', '猛虎扑山 · 裂爪摧城')"
+          class="md-btn px-2 py-2 rounded-xl bg-slate-900/95 hover:bg-red-950 text-amber-100 text-xs font-bold serif-cn flex flex-col items-center gap-0.5 border border-amber-500/40">
+          <span>🐅 侧面虎</span>
+          <span class="text-[10px] text-amber-300/80 font-normal">斑斓猛虎撕裂</span>
+        </button>
+        <button onclick="window.gameApp.previewUltimateVFX('octagon_horse', '八角马', '明月银枪 · 八角锁阵')"
+          class="md-btn px-2 py-2 rounded-xl bg-slate-900/95 hover:bg-red-950 text-amber-100 text-xs font-bold serif-cn flex flex-col items-center gap-0.5 border border-amber-500/40">
+          <span>🌕 八角马</span>
+          <span class="text-[10px] text-amber-300/80 font-normal">明月银枪锁宫</span>
+        </button>
+        <button onclick="window.gameApp.previewUltimateVFX('fishing_horse', '钓鱼马', '金钩垂钓 · 碧浪锁将')"
+          class="md-btn px-2 py-2 rounded-xl bg-slate-900/95 hover:bg-red-950 text-amber-100 text-xs font-bold serif-cn flex flex-col items-center gap-0.5 border border-amber-500/40">
+          <span>🎣 钓鱼马</span>
+          <span class="text-[10px] text-amber-300/80 font-normal">金钩碧浪收网</span>
+        </button>
+        <button onclick="window.gameApp.previewUltimateVFX('standing_horse_chariot', '列马车', '断崖赤日 · 列马斩将')"
+          class="md-btn px-2 py-2 rounded-xl bg-slate-900/95 hover:bg-red-950 text-amber-100 text-xs font-bold serif-cn flex flex-col items-center gap-0.5 border border-amber-500/40">
+          <span>🐎 列马车</span>
+          <span class="text-[10px] text-amber-300/80 font-normal">断崖赤日破阵</span>
+        </button>
+        <button onclick="window.gameApp.previewUltimateVFX('double_check', '双将', '双将临门 · 金锤破空')"
+          class="md-btn px-2 py-2 rounded-xl bg-slate-900/95 hover:bg-red-950 text-amber-100 text-xs font-bold serif-cn flex flex-col items-center gap-0.5 border border-amber-500/40">
+          <span>🛡️ 双将</span>
+          <span class="text-[10px] text-amber-300/80 font-normal">双神锤轰裂</span>
+        </button>
+        <button onclick="window.gameApp.previewUltimateVFX('chariot_cannon_clamp', '夹车炮', '玄铁巨钳 · 战车炮轰')"
+          class="md-btn px-2 py-2 rounded-xl bg-slate-900/95 hover:bg-red-950 text-amber-100 text-xs font-bold serif-cn flex flex-col items-center gap-0.5 border border-amber-500/40">
+          <span>⚙️ 夹车炮</span>
+          <span class="text-[10px] text-amber-300/80 font-normal">巨钳战车合击</span>
+        </button>
+        <button onclick="window.gameApp.previewUltimateVFX('trough_horse', '卧槽马', '赤兔破槽 · 金印踏阵')"
+          class="md-btn px-2 py-2 rounded-xl bg-slate-900/95 hover:bg-red-950 text-amber-100 text-xs font-bold serif-cn flex flex-col items-center gap-0.5 border border-amber-500/40">
+          <span>🔥 卧槽马</span>
+          <span class="text-[10px] text-amber-300/80 font-normal">破槽烈焰冲锋</span>
+        </button>
+        <button onclick="window.gameApp.previewUltimateVFX('smothered_kill', '闷杀', '玄铁重锤 · 轰然崩塌')"
+          class="md-btn px-2 py-2 rounded-xl bg-slate-900/95 hover:bg-red-950 text-amber-100 text-xs font-bold serif-cn flex flex-col items-center gap-0.5 border border-amber-500/40">
+          <span>⛰️ 闷杀</span>
+          <span class="text-[10px] text-amber-300/80 font-normal">重锤铁链轰砸</span>
+        </button>
+        <button onclick="window.gameApp.previewUltimateVFX('heaven_earth_cannon', '天地炮', '九天雷火 · 乾坤十字')"
+          class="md-btn px-2 py-2 rounded-xl bg-slate-900/95 hover:bg-red-950 text-amber-100 text-xs font-bold serif-cn flex flex-col items-center gap-0.5 border border-amber-500/40">
+          <span>⚡ 天地炮</span>
+          <span class="text-[10px] text-amber-300/80 font-normal">天地十字火柱</span>
+        </button>
+        <button onclick="window.gameApp.previewUltimateVFX('stalemate_trap', '困毙', '八卦石碑 · 四面合围')"
+          class="md-btn px-2 py-2 rounded-xl bg-slate-900/95 hover:bg-red-950 text-amber-100 text-xs font-bold serif-cn flex flex-col items-center gap-0.5 border border-amber-500/40">
+          <span>🔒 困毙</span>
+          <span class="text-[10px] text-amber-300/80 font-normal">八卦石阵封死</span>
+        </button>
+        <button onclick="window.gameApp.previewUltimateVFX('frost_lotus_strike', '海底捞月', '沧海映月 · 碧浪涌莲')"
+          class="md-btn px-2 py-2 rounded-xl bg-slate-900/95 hover:bg-red-950 text-amber-100 text-xs font-bold serif-cn flex flex-col items-center gap-0.5 border border-amber-500/40 col-span-3 sm:col-span-2">
+          <span>🌕 海底捞月 · 碧海涌莲</span>
+          <span class="text-[10px] text-amber-300/80 font-normal">水中映月·冰莲破浪</span>
+        </button>
+      </div>
+    </div>
+  </div>
 
   <div id="gameover-modal"
     class="fixed inset-0 z-40 bg-slate-950/55 backdrop-blur-sm hidden items-center justify-center p-4">

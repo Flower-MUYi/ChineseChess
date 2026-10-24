@@ -2532,76 +2532,155 @@ Object.assign(Xiangqi3DApp.prototype, {
     spinPivot2.add(shaft2, pommel2, collar2, halberdTip2, wheelHalo2);
     weapon2.userData = { spinPivot: spinPivot2, wheelHalo: wheelHalo2 };
 
-    // 合体巨型神剑：龙凤乾坤轩辕破天巨剑
+    // =========================================================================
+    // 合体巨型神剑（模块化机械拼装总成：龙凤乾坤轩辕破天巨剑）
+    // 包含 7 大独立可动拼装子部件，在空中与对齐姿态后的双武器逐步机械锁死合体！
+    // =========================================================================
     const greatsword = new THREE.Group();
-    const outerBlade = new THREE.Mesh(new THREE.ConeGeometry(0.48, 3.95, 4), goldMat);
-    outerBlade.rotation.x = Math.PI;
-    outerBlade.scale.set(1.52, 1, 0.36);
-    outerBlade.position.y = 0.0;
 
-    const bladeEdgeGlow = new THREE.Mesh(new THREE.ConeGeometry(0.52, 4.02, 4), goldGlowMat.clone());
-    bladeEdgeGlow.rotation.x = Math.PI;
-    bladeEdgeGlow.scale.set(1.58, 1, 0.24);
-    bladeEdgeGlow.position.y = -0.02;
-
-    const fullerCore = new THREE.Mesh(new THREE.BoxGeometry(0.24, 2.95, 0.19), crimsonLacquerMat);
+    // 1. 中央脊骨剑芯模块 (coreSpineGroup: 从上方插入两把对齐武器正中央)
+    const coreSpineGroup = new THREE.Group();
+    const fullerCore = new THREE.Mesh(new THREE.BoxGeometry(0.26, 3.05, 0.20), crimsonLacquerMat);
     fullerCore.position.y = 0.42;
-    const runeLine = new THREE.Mesh(new THREE.BoxGeometry(0.085, 2.75, 0.22), crimsonGlowMat.clone());
+    const runeLine = new THREE.Mesh(new THREE.BoxGeometry(0.095, 2.85, 0.24), crimsonGlowMat.clone());
     runeLine.position.y = 0.42;
+    const centerTipSpear = new THREE.Mesh(new THREE.ConeGeometry(0.28, 1.45, 4), goldGlowMat.clone());
+    centerTipSpear.rotation.x = Math.PI;
+    centerTipSpear.scale.set(1.25, 1, 0.35);
+    centerTipSpear.position.y = -1.42;
+    coreSpineGroup.add(fullerCore, runeLine, centerTipSpear);
+    for (let lk = 0; lk < 4; lk++) {
+      const latch = new THREE.Mesh(new THREE.BoxGeometry(0.58, 0.11, 0.26), goldMat);
+      latch.position.y = -0.45 + lk * 0.62;
+      coreSpineGroup.add(latch);
+    }
 
-    const guardCenter = new THREE.Mesh(new THREE.BoxGeometry(1.22, 0.36, 0.45), crimsonLacquerMat);
-    guardCenter.position.y = 1.92;
-    const guardGem = new THREE.Mesh(new THREE.OctahedronGeometry(0.26, 1), goldGlowMat.clone());
-    guardGem.position.set(0, 1.92, 0.24);
+    // 2. 左右黄金巨剑刃翼模块 (leftBladeEdgeGroup / rightBladeEdgeGroup: 从左右两侧向内滑入包覆锁定双武器)
+    const leftBladeEdgeGroup = new THREE.Group();
+    const leftOuterBlade = new THREE.Mesh(new THREE.ConeGeometry(0.36, 3.85, 4), goldMat);
+    leftOuterBlade.rotation.x = Math.PI;
+    leftOuterBlade.scale.set(1.18, 1, 0.32);
+    leftOuterBlade.position.set(-0.24, 0.02, 0);
+    const leftEdgeGlow = new THREE.Mesh(new THREE.ConeGeometry(0.39, 3.92, 4), goldGlowMat.clone());
+    leftEdgeGlow.rotation.x = Math.PI;
+    leftEdgeGlow.scale.set(1.22, 1, 0.22);
+    leftEdgeGlow.position.set(-0.26, 0.0, 0);
+    leftBladeEdgeGroup.add(leftOuterBlade, leftEdgeGlow);
+
+    const rightBladeEdgeGroup = new THREE.Group();
+    const rightOuterBlade = new THREE.Mesh(new THREE.ConeGeometry(0.36, 3.85, 4), goldMat);
+    rightOuterBlade.rotation.x = Math.PI;
+    rightOuterBlade.scale.set(1.18, 1, 0.32);
+    rightOuterBlade.position.set(0.24, 0.02, 0);
+    const rightEdgeGlow = new THREE.Mesh(new THREE.ConeGeometry(0.39, 3.92, 4), goldGlowMat.clone());
+    rightEdgeGlow.rotation.x = Math.PI;
+    rightEdgeGlow.scale.set(1.22, 1, 0.22);
+    rightEdgeGlow.position.set(0.26, 0.0, 0);
+    rightBladeEdgeGroup.add(rightOuterBlade, rightEdgeGlow);
+
+    // 3. 左右玄铁朱漆护手卡扣模块 (leftGuardClampGroup / rightGuardClampGroup: 从两侧横向咬合锁死)
+    const leftGuardClampGroup = new THREE.Group();
+    const guardLeftBox = new THREE.Mesh(new THREE.BoxGeometry(0.66, 0.38, 0.46), crimsonLacquerMat);
+    guardLeftBox.position.set(-0.31, 1.92, 0);
+    const guardLeftTrim = new THREE.Mesh(new THREE.BoxGeometry(0.70, 0.10, 0.50), goldMat);
+    guardLeftTrim.position.set(-0.31, 2.08, 0);
+    leftGuardClampGroup.add(guardLeftBox, guardLeftTrim);
+
+    const rightGuardClampGroup = new THREE.Group();
+    const guardRightBox = new THREE.Mesh(new THREE.BoxGeometry(0.66, 0.38, 0.46), crimsonLacquerMat);
+    guardRightBox.position.set(0.31, 1.92, 0);
+    const guardRightTrim = new THREE.Mesh(new THREE.BoxGeometry(0.70, 0.10, 0.50), goldMat);
+    guardRightTrim.position.set(0.31, 2.08, 0);
+    const guardGem = new THREE.Mesh(new THREE.OctahedronGeometry(0.27, 1), goldGlowMat.clone());
+    guardGem.position.set(0, 1.92, 0.25);
     const guardGemBack = guardGem.clone();
-    guardGemBack.position.set(0, 1.92, -0.24);
+    guardGemBack.position.set(0, 1.92, -0.25);
+    rightGuardClampGroup.add(guardRightBox, guardRightTrim, guardGem, guardGemBack);
+
+    // 4. 左右龙凤展翼护手模块 (leftWingArrayGroup / rightWingArrayGroup: 绕枢轴扇形展开)
+    const leftWingArrayGroup = new THREE.Group();
+    leftWingArrayGroup.position.set(-0.48, 1.92, 0);
+    const rightWingArrayGroup = new THREE.Group();
+    rightWingArrayGroup.position.set(0.48, 1.92, 0);
 
     [-1, 1].forEach(s => {
+      const targetWingGrp = s === -1 ? leftWingArrayGroup : rightWingArrayGroup;
       for (let w = 0; w < 3; w++) {
         const wingPinion = new THREE.Mesh(
-          new THREE.ConeGeometry(0.15 - w * 0.02, 1.02 - w * 0.15, 6),
+          new THREE.ConeGeometry(0.15 - w * 0.02, 1.05 - w * 0.15, 6),
           w % 2 === 0 ? goldMat : crimsonLacquerMat
         );
-        wingPinion.position.set(s * (0.75 + w * 0.30), 2.02 + w * 0.14, 0);
+        wingPinion.position.set(s * (0.28 + w * 0.30), 0.10 + w * 0.14, 0);
         wingPinion.rotation.z = -s * (0.95 - w * 0.18);
-        greatsword.add(wingPinion);
+        targetWingGrp.add(wingPinion);
       }
-      const lowerFangs = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.56, 5), goldMat);
-      lowerFangs.position.set(s * 0.50, 1.55, 0);
+      const lowerFangs = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.58, 5), goldMat);
+      lowerFangs.position.set(s * 0.06, -0.36, 0);
       lowerFangs.rotation.z = s * 2.75;
-      greatsword.add(lowerFangs);
+      targetWingGrp.add(lowerFangs);
     });
 
-    const swordHaloRing = new THREE.Mesh(new THREE.TorusGeometry(1.15, 0.060, 12, 40), goldGlowMat.clone());
-    swordHaloRing.position.y = 1.92;
-
+    // 5. 剑柄柱体模块 (hiltColumnGroup: 从上方下压套接在护手正上方)
+    const hiltColumnGroup = new THREE.Group();
     const hiltShaft = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.19, 1.22, 16), darkIronMat);
     hiltShaft.position.y = 2.65;
+    hiltColumnGroup.add(hiltShaft);
     for (let r = 0; r < 4; r++) {
       const gripBand = new THREE.Mesh(new THREE.TorusGeometry(0.18, 0.030, 8, 20), goldMat);
       gripBand.rotation.x = Math.PI / 2;
       gripBand.position.y = 2.24 + r * 0.26;
-      greatsword.add(gripBand);
+      hiltColumnGroup.add(gripBand);
     }
-    const pommelCrown = new THREE.Mesh(new THREE.CylinderGeometry(0.30, 0.19, 0.24, 14), goldMat);
+
+    // 6. 帝王剑首冠冕模块 (pommelCrownGroup: 最后旋紧叩击封顶)
+    const pommelCrownGroup = new THREE.Group();
+    const pommelCrown = new THREE.Mesh(new THREE.CylinderGeometry(0.31, 0.19, 0.25, 14), goldMat);
     pommelCrown.position.y = 3.32;
-    const pommelSphere = new THREE.Mesh(new THREE.OctahedronGeometry(0.30, 1), crimsonGlowMat.clone());
+    const pommelSphere = new THREE.Mesh(new THREE.OctahedronGeometry(0.31, 1), crimsonGlowMat.clone());
     pommelSphere.position.y = 3.60;
+    pommelCrownGroup.add(pommelCrown, pommelSphere);
+
+    // 7. 空中姿态校准与拼装导轨光环组 (dockingRingsGroup & swordHaloRing)
+    const dockingRingsGroup = new THREE.Group();
+    for (let dr = 0; dr < 3; dr++) {
+      const dRing = new THREE.Mesh(
+        new THREE.TorusGeometry(0.95 - dr * 0.18, 0.035, 10, 32),
+        dr % 2 === 0 ? goldGlowMat.clone() : crimsonGlowMat.clone()
+      );
+      dRing.rotation.x = Math.PI / 2;
+      dRing.position.y = -0.35 + dr * 1.05;
+      dockingRingsGroup.add(dRing);
+    }
+
+    const swordHaloRing = new THREE.Mesh(new THREE.TorusGeometry(1.18, 0.062, 12, 40), goldGlowMat.clone());
+    swordHaloRing.position.y = 1.92;
 
     greatsword.add(
-      outerBlade,
-      bladeEdgeGlow,
-      fullerCore,
-      runeLine,
-      guardCenter,
-      guardGem,
-      guardGemBack,
-      swordHaloRing,
-      hiltShaft,
-      pommelCrown,
-      pommelSphere
+      coreSpineGroup,
+      leftBladeEdgeGroup,
+      rightBladeEdgeGroup,
+      leftGuardClampGroup,
+      rightGuardClampGroup,
+      leftWingArrayGroup,
+      rightWingArrayGroup,
+      hiltColumnGroup,
+      pommelCrownGroup,
+      dockingRingsGroup,
+      swordHaloRing
     );
-    greatsword.userData = { swordHaloRing };
+    greatsword.userData = {
+      swordHaloRing,
+      coreSpineGroup,
+      leftBladeEdgeGroup,
+      rightBladeEdgeGroup,
+      leftGuardClampGroup,
+      rightGuardClampGroup,
+      leftWingArrayGroup,
+      rightWingArrayGroup,
+      hiltColumnGroup,
+      pommelCrownGroup,
+      dockingRingsGroup
+    };
     return { weapon1, weapon2, greatsword };
   },
 

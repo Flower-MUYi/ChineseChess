@@ -157,13 +157,19 @@ Object.assign(Xiangqi3DApp.prototype, {
         });
         cue(0.59, 'shc_hrush', () => this.sfx.playVFXHoofGallop?.(3, 0.85, 0.82));
       } else if (vfxType === 'double_check') {
-        cue(0.02, 'dchk_throw', () => this.sfx.playVFXSpinningWeaponThrow?.(1.65, 0.84));
-        cue(0.36, 'dchk_fuse', () => {
-          this.sfx.playVFXMorphFlash?.(0.86, 0.90);
-          this.sfx.playVFXSwordUnsheathe?.(0.92);
+        cue(0.02, 'dchk_throw', () => this.sfx.playVFXSpinningWeaponThrow?.(1.35, 0.84));
+        cue(0.21, 'dchk_align', () => this.sfx.playVFXWindWhoosh?.(540, 260, 0.36, 0.58, 0));
+        cue(0.33, 'dchk_mech1', () => this.sfx.playVFXMechanicalAssemble?.(0.88));
+        cue(0.44, 'dchk_clamp', () => {
+          this.sfx.playVFXIronBoltSlam?.(0.86, 0.96);
+          this.sfx.playVFXAmmoLoad?.(0.82);
         });
-        cue(0.54, 'dchk_plunge', () => this.sfx.playVFXWindWhoosh?.(920, 140, 0.82, 0.88, 0));
-        cue(0.69, 'dchk_cleave', () => this.sfx.playVFXSwordCleave?.(0.98));
+        cue(0.54, 'dchk_fuse', () => {
+          this.sfx.playVFXMorphFlash?.(0.84, 0.92);
+          this.sfx.playVFXSwordUnsheathe?.(0.94);
+        });
+        cue(0.62, 'dchk_plunge', () => this.sfx.playVFXWindWhoosh?.(940, 130, 0.72, 0.90, 0));
+        cue(0.74, 'dchk_cleave', () => this.sfx.playVFXSwordCleave?.(0.98));
       } else if (vfxType === 'chariot_cannon_clamp') {
         cue(0.02, 'ccc_spiral', () => this.sfx.playVFXWindWhoosh?.(240, 620, 0.65, 0.52, 0));
         cue(0.20, 'ccc_morph', () => this.sfx.playVFXMorphFlash?.(0.74, 0.96));
@@ -206,17 +212,19 @@ Object.assign(Xiangqi3DApp.prototype, {
         cue(0.68, 'sk_fall', () => this.sfx.playVFXWindWhoosh?.(720, 110, 0.42, 0.85, 0));
       } else if (vfxType === 'heaven_earth_cannon') {
         cue(0.01, 'hec_land', () => this.sfx.playVFXPieceStepThud?.(0.72, 0.90));
-        cue(0.12, 'hec_spiral', () => this.sfx.playVFXWindWhoosh?.(220, 760, 1.20, 0.62, 0));
-        cue(0.28, 'hec_sun', () => {
+        cue(0.10, 'hec_spiral', () => this.sfx.playVFXWindWhoosh?.(220, 760, 1.20, 0.62, 0));
+        cue(0.22, 'hec_sun', () => {
           this.sfx.playVFXSolarLavaRumble?.(2.60, 0.88);
-          this.sfx.playVFXHeavyExplosion?.(1.35, 0.82);
+          this.sfx.playVFXHeavyExplosion?.(1.25, 0.80);
         });
-        cue(0.43, 'hec_pass', () => this.sfx.playVFXMeteorWhistlePass?.(0.95));
-        cue(0.56, 'hec_rain', () => this.sfx.playVFXMeteorRainImpacts?.(1.15, 0.84));
-        cue(0.71, 'hec_blocker', () => this.sfx.playVFXHeavyExplosion?.(1.80, 0.98));
-        cue(0.78, 'hec_whiteout', () => {
-          this.sfx.playVFXSolarLavaRumble?.(1.45, 0.95);
-          this.sfx.playVFXHeavyExplosion?.(1.95, 1.0);
+        cue(0.39, 'hec_pass', () => this.sfx.playVFXMeteorWhistlePass?.(0.95));
+        cue(0.45, 'hec_cut1_slam', () => this.sfx.playVFXHeavyExplosion?.(1.75, 0.96));
+        cue(0.50, 'hec_rain', () => this.sfx.playVFXMeteorRainImpacts?.(1.35, 0.88));
+        cue(0.70, 'hec_blocker', () => this.sfx.playVFXHeavyExplosion?.(1.80, 0.98));
+        cue(0.75, 'hec_selfwave', () => this.sfx.playVFXSolarLavaRumble?.(2.10, 0.94));
+        cue(0.80, 'hec_touchdown_quake', () => {
+          this.sfx.playVFXHeavyExplosion?.(2.15, 1.0);
+          this.sfx.playVFXSolarLavaRumble?.(1.85, 0.98);
         });
       } else if (vfxType === 'stalemate_trap') {
         cue(0.02, 'st_walls', () => this.sfx.playVFXStoneWallRise?.(0.88, 0.85));
@@ -3067,7 +3075,7 @@ Object.assign(Xiangqi3DApp.prototype, {
         ? checkerItem1.basePos.clone()
         : new THREE.Vector3(kPos.x + 3.0, 0, kPos.z + 2.2);
 
-      // 将两枚起跳掷武器的棋子向视野中心聚拢，确保无论原棋盘坐标跨度多大都在电脑宽屏视野中央！
+      // 将两枚起跳掷武器的棋子向视野中心聚拢，确保无论原棋盘坐标跨度多大都在视野中央
       const stageThrowPos0 = new THREE.Vector3(
         THREE.MathUtils.lerp(origin0.x, -2.15, 0.45),
         0,
@@ -3095,22 +3103,27 @@ Object.assign(Xiangqi3DApp.prototype, {
       group.add(weapon1, weapon2, greatsword);
       greatsword.visible = false;
 
+      // 飞行轨迹终点定在合体点左右两侧 (mergeApex.x ∓ 0.86)，方便在飞行后段调整好竖直平行姿态后再开始机械拼装！
+      const alignPos0 = new THREE.Vector3(mergeApex.x - 0.86, mergeApex.y + 0.35, mergeApex.z);
+      const alignPos1 = new THREE.Vector3(mergeApex.x + 0.86, mergeApex.y + 0.35, mergeApex.z);
       const throwCurve0 = new THREE.QuadraticBezierCurve3(
         new THREE.Vector3(stageThrowPos0.x, 1.05, stageThrowPos0.z),
-        new THREE.Vector3(mergeApex.x - 2.35, 4.95, (stageThrowPos0.z + mergeApex.z) * 0.5),
-        mergeApex.clone()
+        new THREE.Vector3(mergeApex.x - 2.45, 5.05, (stageThrowPos0.z + mergeApex.z) * 0.5),
+        alignPos0.clone()
       );
       const throwCurve1 = new THREE.QuadraticBezierCurve3(
         new THREE.Vector3(stageThrowPos1.x, 1.05, stageThrowPos1.z),
-        new THREE.Vector3(mergeApex.x + 2.35, 4.95, (stageThrowPos1.z + mergeApex.z) * 0.5),
-        mergeApex.clone()
+        new THREE.Vector3(mergeApex.x + 2.45, 5.05, (stageThrowPos1.z + mergeApex.z) * 0.5),
+        alignPos1.clone()
       );
 
       const fusionAura = this.createSmoothMorphAura(group, 0xfacc15);
       const megaExplosion = create3DCannonExplosion(kPos, 1.45);
+      let clampShakeTriggered = false;
+      let lockShakeTriggered = false;
 
       return wrapUpdater((p, dt, fade = 1) => {
-        const cgWeight = smoothstep(0.02, 0.24, p) * (1 - smoothstep(0.54, 0.74, p)) * fade;
+        const cgWeight = smoothstep(0.02, 0.22, p) * (1 - smoothstep(0.62, 0.80, p)) * fade;
         vfxContext?.setSceneTransition?.(cgWeight);
         cgScene.setFade(cgWeight, dt, p);
 
@@ -3120,7 +3133,7 @@ Object.assign(Xiangqi3DApp.prototype, {
         ].forEach(({ item, orig, stageP, sign }, idx) => {
           if (!item?.mesh || (idx === 1 && checkerItem1 === checkerItem0)) return;
           item.customDriven = true;
-          const gatherWeight = p < 0.36 ? Math.sin((p / 0.36) * Math.PI) : 0;
+          const gatherWeight = p < 0.33 ? Math.sin((p / 0.33) * Math.PI) : 0;
           const curX = THREE.MathUtils.lerp(orig.x, stageP.x, gatherWeight);
           const curZ = THREE.MathUtils.lerp(orig.z, stageP.z, gatherWeight);
           const jumpArc = gatherWeight * 1.45;
@@ -3131,7 +3144,7 @@ Object.assign(Xiangqi3DApp.prototype, {
             jumpArc,
             curZ,
             jumpArc * 0.35 * sign,
-            p < 0.36 ? (p / 0.36) * Math.PI * 2 * sign : 0,
+            p < 0.33 ? (p / 0.33) * Math.PI * 2 * sign : 0,
             0,
             sc,
             1.0,
@@ -3139,100 +3152,251 @@ Object.assign(Xiangqi3DApp.prototype, {
           );
         });
 
-        if (p < 0.36) {
-          const throwT = smoothstep(0.02, 0.36, p);
+        const ud = greatsword.userData || {};
+
+        if (p < 0.33) {
+          // ===================================================================
+          // 阶段 1 (0.00 -> 0.33): 双武器破空飞升 + 空中飞行途中减速调姿对齐
+          // - 0.00 -> 0.20: 高速刀轮旋转飞向高空
+          // - 0.20 -> 0.33: 在空中滑行到位的同时，旋转平滑制动，刀尖垂直朝下 (-Y)、枪戟躯干完全竖直平行对齐！
+          // ===================================================================
+          clampShakeTriggered = false;
+          lockShakeTriggered = false;
+          const flightT = smoothstep(0.02, 0.33, p);
+          const alignT = smoothstep(0.19, 0.32, p); // 飞行后半段调姿对齐进度
+
           weapon1.visible = true;
           weapon2.visible = true;
-          greatsword.visible = false;
 
-          weapon1.position.copy(throwCurve0.getPoint(throwT));
-          weapon1.rotation.set(0.28, 0.35, 0);
-          weapon1.userData.spinPivot.rotation.set(0, 0, -throwT * Math.PI * 10);
-          weapon1.userData.wheelHalo.material.opacity = Math.sin(throwT * Math.PI) * 0.72 * fade;
-          weapon1.scale.setScalar((0.88 + throwT * 0.35) * fade);
+          // 在 0.26 -> 0.33 提前浮现校准导轨光环，标示两把武器已完成空中姿态校准
+          greatsword.visible = p >= 0.25;
+          if (greatsword.visible) {
+            greatsword.position.set(mergeApex.x, mergeApex.y + 0.35, mergeApex.z);
+            greatsword.rotation.set(0, 0, 0);
+            greatsword.scale.setScalar(1.18 * fade);
+            if (ud.coreSpineGroup) ud.coreSpineGroup.visible = false;
+            if (ud.leftBladeEdgeGroup) ud.leftBladeEdgeGroup.visible = false;
+            if (ud.rightBladeEdgeGroup) ud.rightBladeEdgeGroup.visible = false;
+            if (ud.leftGuardClampGroup) ud.leftGuardClampGroup.visible = false;
+            if (ud.rightGuardClampGroup) ud.rightGuardClampGroup.visible = false;
+            if (ud.leftWingArrayGroup) ud.leftWingArrayGroup.visible = false;
+            if (ud.rightWingArrayGroup) ud.rightWingArrayGroup.visible = false;
+            if (ud.hiltColumnGroup) ud.hiltColumnGroup.visible = false;
+            if (ud.pommelCrownGroup) ud.pommelCrownGroup.visible = false;
+            if (ud.swordHaloRing) ud.swordHaloRing.visible = false;
+            if (ud.dockingRingsGroup) {
+              ud.dockingRingsGroup.visible = true;
+              const ringAppear = smoothstep(0.25, 0.33, p);
+              ud.dockingRingsGroup.scale.set(1.25 - ringAppear * 0.20, 1.0, 1.25 - ringAppear * 0.20);
+              ud.dockingRingsGroup.rotation.y += dt * 5.0;
+            }
+          }
 
-          weapon2.position.copy(throwCurve1.getPoint(throwT));
-          weapon2.rotation.set(0.28, -0.35, 0);
-          weapon2.userData.spinPivot.rotation.set(0, 0, throwT * Math.PI * 10);
-          weapon2.userData.wheelHalo.material.opacity = Math.sin(throwT * Math.PI) * 0.72 * fade;
-          weapon2.scale.setScalar((0.88 + throwT * 0.35) * fade);
+          // 计算旋转角度：前段高速旋转，后段平滑制动锁定在 Math.PI (使原本 +Y 的枪尖/戟尖精准朝向正下方 -Y！)
+          const spinPhase = flightT < 0.62
+            ? (flightT / 0.62) * 0.82
+            : 0.82 + (1 - Math.pow(1 - (flightT - 0.62) / 0.38, 3)) * 0.18;
+          const targetSpinAngle = spinPhase * Math.PI * 5.0; // 5 * PI 同余于 PI (朝向正下方)
 
-          fusionAura.update(mergeApex, smoothstep(0.24, 0.36, p) * 0.5, fade);
+          // 外层姿态：飞行初期略带倾角，随后在 alignT 中完全校准为竖直平行姿态 (0, 0, 0)
+          const tiltX = THREE.MathUtils.lerp(0.32, 0.0, alignT);
+          const tiltY = THREE.MathUtils.lerp(0.38, 0.0, alignT);
+          const tiltZ = THREE.MathUtils.lerp(0.24, 0.0, alignT);
+
+          weapon1.position.copy(throwCurve0.getPoint(flightT));
+          weapon1.rotation.set(tiltX, tiltY, -tiltZ);
+          weapon1.userData.spinPivot.rotation.set(0, 0, -targetSpinAngle);
+          weapon1.userData.wheelHalo.material.opacity = (1 - alignT * 0.88) * Math.sin(Math.min(1, flightT * 1.4) * Math.PI) * 0.72 * fade;
+          weapon1.scale.setScalar(THREE.MathUtils.lerp(0.90, 1.15, flightT) * fade);
+
+          weapon2.position.copy(throwCurve1.getPoint(flightT));
+          weapon2.rotation.set(tiltX, -tiltY, tiltZ);
+          weapon2.userData.spinPivot.rotation.set(0, 0, targetSpinAngle);
+          weapon2.userData.wheelHalo.material.opacity = (1 - alignT * 0.88) * Math.sin(Math.min(1, flightT * 1.4) * Math.PI) * 0.72 * fade;
+          weapon2.scale.setScalar(THREE.MathUtils.lerp(0.90, 1.15, flightT) * fade);
+
+          fusionAura.update(
+            new THREE.Vector3(mergeApex.x, mergeApex.y + 0.35, mergeApex.z),
+            smoothstep(0.24, 0.33, p) * 0.38,
+            fade
+          );
 
           if (vfxContext?.setCameraOverride) {
-            // 镜头焦点锁定在双子起跳中心与合体高空点之间，并适当拉远半径，确保电脑宽屏 100% 囊括双子掷出武器画面！
             vfxContext.setCameraOverride(
               new THREE.Vector3(
-                THREE.MathUtils.lerp(midThrowCenter.x, mergeApex.x, throwT),
-                THREE.MathUtils.lerp(1.1, 3.6, throwT),
-                THREE.MathUtils.lerp(midThrowCenter.z, mergeApex.z, throwT)
+                THREE.MathUtils.lerp(midThrowCenter.x, mergeApex.x, flightT),
+                THREE.MathUtils.lerp(1.1, mergeApex.y + 0.35, flightT),
+                THREE.MathUtils.lerp(midThrowCenter.z, mergeApex.z, flightT)
               ),
-              14.6,
-              0.76,
-              throwT * 0.22
+              THREE.MathUtils.lerp(14.6, 12.2, alignT),
+              THREE.MathUtils.lerp(0.76, 0.88, alignT),
+              flightT * 0.18
             );
           }
-        } else if (p < 0.54) {
-          const fuseT = (p - 0.36) / 0.18;
-          weapon1.visible = fuseT < 0.35;
-          weapon2.visible = fuseT < 0.35;
-          const shrink = Math.max(0.01, 1 - fuseT * 2.8);
-          weapon1.scale.setScalar(shrink * fade);
-          weapon2.scale.setScalar(shrink * fade);
+        } else if (p < 0.61) {
+          // ===================================================================
+          // 阶段 2 (0.33 -> 0.61): 空中多部件机械拼装动画（绝非直接变身！）
+          // 两把已校准为竖直朝下姿态的武器保留在画面中，向内平移对接为巨剑左右龙凤双锋轨，
+          // 同时中央脊骨剑芯、左右外刃翼、玄铁护手卡扣、龙凤六翼、剑柄与帝王剑首依次机械滑入锁死！
+          // ===================================================================
+          const assembleT = (p - 0.33) / 0.28;
+          const swordPos = new THREE.Vector3().lerpVectors(
+            new THREE.Vector3(mergeApex.x, mergeApex.y + 0.35, mergeApex.z),
+            new THREE.Vector3(kPos.x, mergeApex.y + 0.65, kPos.z),
+            smoothstep(0.0, 1.0, assembleT)
+          );
 
-          fusionAura.update(mergeApex, 0.2 + fuseT * 0.78, fade);
+          // Step 1 (0.00 -> 0.38): 双武器保持竖直朝下姿态，从左右 ∓0.86 向内平滑靠拢对接到巨剑左右剑脊 ∓0.26！
+          const railDockT = smoothstep(0.00, 0.38, assembleT);
+          const railOffset = THREE.MathUtils.lerp(0.86, 0.26, railDockT);
+          weapon1.visible = true;
+          weapon2.visible = true;
+          weapon1.position.set(swordPos.x - railOffset, swordPos.y + 0.32, swordPos.z);
+          weapon2.position.set(swordPos.x + railOffset, swordPos.y + 0.32, swordPos.z);
+          weapon1.rotation.set(0, 0, 0);
+          weapon2.rotation.set(0, 0, 0);
+          weapon1.userData.spinPivot.rotation.set(0, 0, -Math.PI);
+          weapon2.userData.spinPivot.rotation.set(0, 0, Math.PI);
+          weapon1.userData.wheelHalo.material.opacity = 0;
+          weapon2.userData.wheelHalo.material.opacity = 0;
+          weapon1.scale.setScalar(1.12 * fade);
+          weapon2.scale.setScalar(1.12 * fade);
 
           greatsword.visible = true;
-          const popScale = fuseT < 0.45
-            ? THREE.MathUtils.lerp(0.35, 1.36, fuseT / 0.45)
-            : THREE.MathUtils.lerp(1.36, 1.22, (fuseT - 0.45) / 0.55);
-          greatsword.scale.setScalar(popScale * fade);
-          const swordPos = new THREE.Vector3().lerpVectors(mergeApex, new THREE.Vector3(kPos.x, mergeApex.y + 0.55, kPos.z), fuseT);
           greatsword.position.copy(swordPos);
-          greatsword.rotation.set(0, (1 - smoothstep(0.0, 0.9, fuseT)) * Math.PI * 2, 0);
-          if (greatsword.userData.swordHaloRing) {
-            greatsword.userData.swordHaloRing.rotation.z += dt * 9;
+          greatsword.rotation.set(0, 0, 0);
+          greatsword.scale.setScalar(1.22 * fade);
+
+          // 1) 中央脊骨剑芯 (0.00 -> 0.36): 从上方 y=+2.2 垂直插入双武器正中央
+          const spineT = smoothstep(0.00, 0.36, assembleT);
+          if (ud.coreSpineGroup) {
+            ud.coreSpineGroup.visible = true;
+            ud.coreSpineGroup.position.set(0, (1 - spineT) * 2.25, 0);
+            ud.coreSpineGroup.scale.set(1, 0.35 + spineT * 0.65, 1);
           }
+
+          // 2) 左右黄金巨剑外刃翼 (0.18 -> 0.56): 从两侧 x=∓1.15 横向滑入包覆锁定双武器
+          const bladeClampT = smoothstep(0.18, 0.56, assembleT);
+          if (ud.leftBladeEdgeGroup && ud.rightBladeEdgeGroup) {
+            ud.leftBladeEdgeGroup.visible = assembleT >= 0.14;
+            ud.rightBladeEdgeGroup.visible = assembleT >= 0.14;
+            ud.leftBladeEdgeGroup.position.set(-(1 - bladeClampT) * 1.15, (1 - bladeClampT) * 0.35, 0);
+            ud.rightBladeEdgeGroup.position.set((1 - bladeClampT) * 1.15, (1 - bladeClampT) * 0.35, 0);
+          }
+
+          // 3) 左右玄铁朱漆护手卡扣 (0.30 -> 0.64): 从两侧 x=∓1.35 强力咬合锁死在枪戟柄部
+          const guardClampT = smoothstep(0.30, 0.64, assembleT);
+          if (ud.leftGuardClampGroup && ud.rightGuardClampGroup) {
+            ud.leftGuardClampGroup.visible = assembleT >= 0.26;
+            ud.rightGuardClampGroup.visible = assembleT >= 0.26;
+            ud.leftGuardClampGroup.position.set(-(1 - guardClampT) * 1.35, 0, 0);
+            ud.rightGuardClampGroup.position.set((1 - guardClampT) * 1.35, 0, 0);
+          }
+          if (assembleT >= 0.60 && !clampShakeTriggered) {
+            clampShakeTriggered = true;
+            this.cameraShake = Math.max(this.cameraShake || 0, 0.24);
+          }
+
+          // 4) 龙凤六翼护手扇形展开 (0.46 -> 0.80): 随护手咬合向两侧霸气展开
+          const wingOpenT = smoothstep(0.46, 0.80, assembleT);
+          if (ud.leftWingArrayGroup && ud.rightWingArrayGroup) {
+            ud.leftWingArrayGroup.visible = assembleT >= 0.44;
+            ud.rightWingArrayGroup.visible = assembleT >= 0.44;
+            ud.leftWingArrayGroup.rotation.z = (1 - wingOpenT) * 1.22;
+            ud.rightWingArrayGroup.rotation.z = -(1 - wingOpenT) * 1.22;
+            ud.leftWingArrayGroup.scale.setScalar(0.3 + wingOpenT * 0.7);
+            ud.rightWingArrayGroup.scale.setScalar(0.3 + wingOpenT * 0.7);
+          }
+
+          // 5) 剑柄柱体下压套接 (0.52 -> 0.84)
+          const hiltLockT = smoothstep(0.52, 0.84, assembleT);
+          if (ud.hiltColumnGroup) {
+            ud.hiltColumnGroup.visible = assembleT >= 0.48;
+            ud.hiltColumnGroup.position.set(0, (1 - hiltLockT) * 1.65, 0);
+          }
+
+          // 6) 帝王剑首冠冕旋紧封顶 (0.68 -> 0.94)
+          const pommelLockT = smoothstep(0.68, 0.94, assembleT);
+          if (ud.pommelCrownGroup) {
+            ud.pommelCrownGroup.visible = assembleT >= 0.65;
+            ud.pommelCrownGroup.position.set(0, (1 - pommelLockT) * 1.95, 0);
+            ud.pommelCrownGroup.rotation.y = (1 - pommelLockT) * Math.PI * 3;
+          }
+          if (assembleT >= 0.90 && !lockShakeTriggered) {
+            lockShakeTriggered = true;
+            this.cameraShake = Math.max(this.cameraShake || 0, 0.28);
+          }
+
+          // 7) 校准导轨环收缩锁入剑身 + 剑柄大光轮展开
+          if (ud.dockingRingsGroup) {
+            ud.dockingRingsGroup.visible = assembleT < 0.88;
+            const ringShrink = 1 - smoothstep(0.55, 0.88, assembleT) * 0.65;
+            ud.dockingRingsGroup.scale.set(ringShrink, 1.0, ringShrink);
+            ud.dockingRingsGroup.rotation.y += dt * 9.0;
+          }
+          if (ud.swordHaloRing) {
+            ud.swordHaloRing.visible = assembleT >= 0.62;
+            const haloPop = smoothstep(0.62, 0.95, assembleT);
+            ud.swordHaloRing.scale.setScalar(0.25 + haloPop * 0.75);
+            ud.swordHaloRing.rotation.z += dt * 9.0;
+          }
+
+          // 拼装关键节点迸发金芒光环（不遮挡机械拼装细节）
+          const sparkPulse = Math.sin(assembleT * Math.PI) * 0.42;
+          fusionAura.update(swordPos, sparkPulse, fade);
 
           if (vfxContext?.setCameraOverride) {
             vfxContext.setCameraOverride(
-              swordPos.clone(),
-              THREE.MathUtils.lerp(14.6, 11.2, fuseT),
-              THREE.MathUtils.lerp(0.76, 0.92, fuseT),
-              0.22 + fuseT * 0.22
+              new THREE.Vector3(swordPos.x, swordPos.y + 0.65, swordPos.z),
+              THREE.MathUtils.lerp(12.2, 10.6, assembleT),
+              THREE.MathUtils.lerp(0.88, 0.96, assembleT),
+              0.18 + assembleT * 0.20
             );
           }
         } else {
-          weapon1.visible = false;
-          weapon2.visible = false;
+          // ===================================================================
+          // 阶段 3 (0.61 -> 1.00): 拼装完成的轩辕巨剑（内嵌双武器）从高空雷霆坠落劈斩
+          // ===================================================================
           fusionAura.update(mergeApex, 0, 0);
 
-          const plungeT = smoothstep(0.54, 0.72, p);
+          const plungeT = smoothstep(0.61, 0.75, p);
           const swordFadeOut = 1 - smoothstep(0.92, 0.99, p);
-          greatsword.visible = swordFadeOut > 0.02;
-          greatsword.position.set(
-            kPos.x,
-            THREE.MathUtils.lerp(mergeApex.y + 0.55, 1.88, plungeT * plungeT),
-            kPos.z
-          );
+          const curY = THREE.MathUtils.lerp(mergeApex.y + 0.65, 1.88, plungeT * plungeT);
+          const vis = swordFadeOut > 0.02;
+
+          greatsword.visible = vis;
+          greatsword.position.set(kPos.x, curY, kPos.z);
           greatsword.rotation.set(0, 0, 0);
           greatsword.scale.setScalar(1.22 * swordFadeOut * fade);
-          if (greatsword.userData.swordHaloRing) {
-            greatsword.userData.swordHaloRing.rotation.z += dt * 10;
+
+          // 保持已拼装嵌入巨剑内部的双武器随巨剑一同下劈，体现真实拼装一体感
+          weapon1.visible = vis;
+          weapon2.visible = vis;
+          weapon1.position.set(kPos.x - 0.26 * swordFadeOut, curY + 0.32 * swordFadeOut, kPos.z);
+          weapon2.position.set(kPos.x + 0.26 * swordFadeOut, curY + 0.32 * swordFadeOut, kPos.z);
+          weapon1.rotation.set(0, 0, 0);
+          weapon2.rotation.set(0, 0, 0);
+          weapon1.scale.setScalar(1.12 * swordFadeOut * fade);
+          weapon2.scale.setScalar(1.12 * swordFadeOut * fade);
+
+          if (ud.dockingRingsGroup) ud.dockingRingsGroup.visible = false;
+          if (ud.swordHaloRing) {
+            ud.swordHaloRing.visible = true;
+            ud.swordHaloRing.rotation.z += dt * 10;
           }
 
-          if (p >= 0.70) {
-            const hitP = (p - 0.70) / 0.30;
+          if (p >= 0.74) {
+            const hitP = (p - 0.74) / 0.26;
             megaExplosion.update.call(this, hitP, fade, kPos);
             applyKingHitFeedback(hitP, 'heavy_smash', 0, 0);
           }
 
           if (vfxContext?.setCameraOverride) {
             vfxContext.setCameraOverride(
-              new THREE.Vector3(kPos.x, THREE.MathUtils.lerp(4.2, 0.95, plungeT), kPos.z),
+              new THREE.Vector3(kPos.x, THREE.MathUtils.lerp(4.4, 0.95, plungeT), kPos.z),
               11.2,
               0.90,
-              THREE.MathUtils.lerp(0.44, 0.18, plungeT)
+              THREE.MathUtils.lerp(0.38, 0.16, plungeT)
             );
           }
         }
@@ -3526,15 +3690,31 @@ Object.assign(Xiangqi3DApp.prototype, {
         || findFriendlyGeneralItem()
         || horseItem;
 
+      // 确保对峙的“将（帅）”3D 棋子实体 100% 存在（若棋盘未找到对应 mesh，则动态创建一枚兜底“將/帥”3D 棋子参演）
+      let kingMesh = kingItem?.mesh || null;
+      if (!kingMesh && typeof this.createPieceMesh === 'function') {
+        const enemyColor = winnerColor === RED ? BLACK : RED;
+        const fallbackKing = this.createPieceMesh(
+          { id: 'vfx_trough_king_fallback', color: enemyColor, type: 'k', char: enemyColor === RED ? '帥' : '將' },
+          0,
+          4
+        );
+        if (fallbackKing) {
+          if (fallbackKing.parent) fallbackKing.parent.remove(fallbackKing);
+          group.add(fallbackKing);
+          kingMesh = fallbackKing;
+        }
+      }
+
       const horseOrigin = horseItem?.basePos
-        ? new THREE.Vector3(horseItem.basePos.x, 0, horseItem.basePos.z)
-        : new THREE.Vector3(cPos.x, 0, cPos.z);
+        ? new THREE.Vector3(Number(horseItem.basePos.x) || 0, 0, Number(horseItem.basePos.z) || 0)
+        : new THREE.Vector3(Number(cPos.x) || 0, 0, Number(cPos.z) || 0);
       const partnerOrigin = partnerItem?.basePos
-        ? new THREE.Vector3(partnerItem.basePos.x, 0, partnerItem.basePos.z)
-        : new THREE.Vector3(kPos.x + 2.0, 0, kPos.z + 2.0);
+        ? new THREE.Vector3(Number(partnerItem.basePos.x) || 0, 0, Number(partnerItem.basePos.z) || 0)
+        : new THREE.Vector3((Number(kPos.x) || 0) + 2.0, 0, (Number(kPos.z) || 0) + 2.0);
       const kingOrigin = kingItem?.basePos
-        ? new THREE.Vector3(kingItem.basePos.x, 0, kingItem.basePos.z)
-        : new THREE.Vector3(kPos.x, 0, kPos.z);
+        ? new THREE.Vector3(Number(kingItem.basePos.x) || 0, 0, Number(kingItem.basePos.z) || 0)
+        : new THREE.Vector3(Number(kPos.x) || 0, 0, Number(kPos.z) || 0);
 
       // 空中对峙点：“将（帅）”在左 (-1.38, 2.25, 0.2)，助战棋子在右 (+1.38, 2.25, 0.2)
       const kingStandoffPos = new THREE.Vector3(-1.38, 2.25, 0.2);
@@ -3680,13 +3860,13 @@ Object.assign(Xiangqi3DApp.prototype, {
         }
 
         // 3. “将（帅）”在空中左端对峙（使用具备完整 y=0 坐标的 kingOrigin 插值至 kingStandoffPos，杜绝 y=NaN 消失问题），p=0.65 被建模马迎面撞飞！
-        if (kingItem?.mesh) {
-          kingItem.customDriven = true;
+        if (kingItem) kingItem.customDriven = true;
+        if (kingMesh) {
           if (p < 0.65) {
             const kCur = new THREE.Vector3().lerpVectors(kingOrigin, kingStandoffPos, standoffInT);
             const tremor = p > 0.18 ? Math.sin(p * 85) * 0.06 : 0;
             this.setPiece3DPose(
-              kingItem.mesh,
+              kingMesh,
               kCur.x - tremor,
               kCur.y,
               kCur.z,
@@ -3710,7 +3890,7 @@ Object.assign(Xiangqi3DApp.prototype, {
             const kz = THREE.MathUtils.lerp(kingStandoffPos.z, -2.6, flyOutT);
             const ky = kingStandoffPos.y + Math.sin(flyOutT * Math.PI * 0.85) * 2.45 - flyOutT * 1.2;
             this.setPiece3DPose(
-              kingItem.mesh,
+              kingMesh,
               kx,
               Math.max(0.1, ky),
               kz,
@@ -3729,7 +3909,7 @@ Object.assign(Xiangqi3DApp.prototype, {
             const kz = THREE.MathUtils.lerp(-2.6, kPos.z, backT);
             const ky = Math.sin(backT * Math.PI) * 1.2;
             this.setPiece3DPose(
-              kingItem.mesh,
+              kingMesh,
               kx,
               ky,
               kz,
@@ -4074,7 +4254,6 @@ Object.assign(Xiangqi3DApp.prototype, {
     if (vfxType === 'heaven_earth_cannon') {
       // 初始草地地图 (Map A: cg_grassland)
       const cgScene = this.createCGSceneEnvironment('cg_grassland', group, { withScorchEarth: true });
-      const centerStage = new THREE.Vector3(0, 0.02, 0);
 
       const cannonItem0 = findAttackerItemByType('c', null) || attackerItems[0];
       const cannonItem1 = findAttackerItemByType('c', cannonItem0) || attackerItems.find((it) => it !== cannonItem0) || cannonItem0;
@@ -4084,53 +4263,51 @@ Object.assign(Xiangqi3DApp.prototype, {
         : new THREE.Vector3(2.2, 0, -2.5);
 
       // =======================================================================
-      // 另一张完整地图：炼狱熔岩焦土巨景地图 (Map B: lavaWorldMapGroup)
-      // 在镜头仰视高空太阳融合为熔岩球刚开始下落时 (p = 0.35)，趁镜头对着天空将整个地面无感切换为此熔岩地图！
+      // 炼狱熔岩焦土巨景地图 (Map B: lavaWorldMapGroup)
+      // 在镜头仰视高空太阳融合为熔岩球时趁机切换为此熔岩地图
       // =======================================================================
       const lavaWorldMapGroup = new THREE.Group();
       lavaWorldMapGroup.visible = false;
       lavaWorldMapGroup.renderOrder = -12;
       group.add(lavaWorldMapGroup);
 
-      // 生成高精度熔岩球表面与熔岩大地纹理
+      // 生成高精度熔岩球表面与熔岩大地纹理（还原《白.mp4》中龟裂耀金岩浆脉络与暗黑冷却浮壳）
       const createMagmaSphereTexture = () => {
         const c = document.createElement('canvas');
         c.width = 512;
         c.height = 512;
         const ctx = c.getContext('2d');
-        const bg = ctx.createLinearGradient(0, 0, 512, 512);
-        bg.addColorStop(0.0, '#7f1d1d');
-        bg.addColorStop(0.35, '#dc2626');
-        bg.addColorStop(0.70, '#ea580c');
+        const bg = ctx.createRadialGradient(256, 256, 20, 256, 256, 360);
+        bg.addColorStop(0.0, '#fef08a');
+        bg.addColorStop(0.28, '#f97316');
+        bg.addColorStop(0.65, '#dc2626');
         bg.addColorStop(1.0, '#450a0a');
         ctx.fillStyle = bg;
         ctx.fillRect(0, 0, 512, 512);
 
-        // 暗黑玄武岩冷却浮壳斑块
-        ctx.fillStyle = 'rgba(28, 10, 6, 0.72)';
-        for (let i = 0; i < 42; i++) {
+        ctx.fillStyle = 'rgba(24, 8, 5, 0.78)';
+        for (let i = 0; i < 52; i++) {
           const rx = (i * 97) % 512;
           const ry = (i * 151) % 512;
-          const rw = 24 + (i % 5) * 18;
-          const rh = 16 + (i % 4) * 14;
+          const rw = 20 + (i % 5) * 16;
+          const rh = 13 + (i % 4) * 13;
           ctx.beginPath();
           ctx.ellipse(rx, ry, rw, rh, (i % 6) * 0.5, 0, Math.PI * 2);
           ctx.fill();
         }
 
-        // 炽白金黄的纵横岩浆裂谷脉络
-        ctx.strokeStyle = '#fef08a';
+        ctx.strokeStyle = '#fef9c3';
         ctx.shadowColor = '#f97316';
-        ctx.shadowBlur = 12;
-        for (let l = 0; l < 28; l++) {
-          ctx.lineWidth = 2.5 + (l % 3) * 2.0;
+        ctx.shadowBlur = 14;
+        for (let l = 0; l < 40; l++) {
+          ctx.lineWidth = 2.2 + (l % 3) * 2.0;
           ctx.beginPath();
           let lx = (l * 67) % 512;
           let ly = (l * 43) % 512;
           ctx.moveTo(lx, ly);
-          for (let s = 0; s < 5; s++) {
-            lx += Math.cos(l + s * 1.3) * 48;
-            ly += Math.sin(l * 0.7 + s * 1.7) * 48;
+          for (let s = 0; s < 6; s++) {
+            lx += Math.cos(l + s * 1.35) * 44;
+            ly += Math.sin(l * 0.75 + s * 1.65) * 44;
             ctx.lineTo(lx, ly);
           }
           ctx.stroke();
@@ -4139,11 +4316,62 @@ Object.assign(Xiangqi3DApp.prototype, {
       };
       const magmaSphereTex = createMagmaSphereTexture();
 
+      // 生成环绕太阳的圆周漩涡云环纹理（还原《白.mp4》01s-05s 中心太阳被一圈厚重金褐流云环绕在屏幕中央的视觉构图）
+      const createCircularCloudRingTexture = () => {
+        const c = document.createElement('canvas');
+        c.width = 512;
+        c.height = 512;
+        const ctx = c.getContext('2d');
+        ctx.clearRect(0, 0, 512, 512);
+        // 中心留出透明圆孔给太阳，圆周 115px -> 252px 为层叠浓密云环
+        const baseRing = ctx.createRadialGradient(256, 256, 86, 256, 256, 252);
+        baseRing.addColorStop(0.0, 'rgba(255, 251, 235, 0.0)');
+        baseRing.addColorStop(0.14, 'rgba(254, 240, 138, 0.86)');
+        baseRing.addColorStop(0.32, 'rgba(217, 119, 6, 0.92)');
+        baseRing.addColorStop(0.62, 'rgba(92, 36, 22, 0.94)');
+        baseRing.addColorStop(0.88, 'rgba(38, 15, 18, 0.92)');
+        baseRing.addColorStop(1.0, 'rgba(18, 8, 12, 0.0)');
+        ctx.fillStyle = baseRing;
+        ctx.fillRect(0, 0, 512, 512);
+
+        // 叠加 64 团沿圆周排布的立体云絮亮边与暗部体积感
+        for (let i = 0; i < 64; i++) {
+          const a = (i / 64) * Math.PI * 2 + (i % 3) * 0.08;
+          const r = 112 + (i % 5) * 26;
+          const px = 256 + Math.cos(a) * r;
+          const py = 256 + Math.sin(a) * r;
+          const pr = 26 + (i % 4) * 12;
+          const g = ctx.createRadialGradient(
+            px - Math.cos(a) * 6,
+            py - Math.sin(a) * 6,
+            2,
+            px,
+            py,
+            pr
+          );
+          if (i % 3 === 0) {
+            g.addColorStop(0, 'rgba(254, 243, 199, 0.55)');
+            g.addColorStop(0.5, 'rgba(234, 88, 12, 0.35)');
+            g.addColorStop(1, 'rgba(0, 0, 0, 0)');
+          } else {
+            g.addColorStop(0, 'rgba(68, 24, 18, 0.65)');
+            g.addColorStop(0.6, 'rgba(30, 12, 16, 0.45)');
+            g.addColorStop(1, 'rgba(0, 0, 0, 0)');
+          }
+          ctx.fillStyle = g;
+          ctx.beginPath();
+          ctx.arc(px, py, pr, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        return new THREE.CanvasTexture(c);
+      };
+      const cloudVortexTex = createCircularCloudRingTexture();
+
       const lavaBasaltMat = new THREE.MeshStandardMaterial({
-        color: 0x1c0a06,
-        emissive: 0x450a0a,
-        emissiveIntensity: 0.35,
-        roughness: 0.85,
+        color: 0x160705,
+        emissive: 0x3b0808,
+        emissiveIntensity: 0.32,
+        roughness: 0.88,
         metalness: 0.15
       });
       const lavaMagmaRiverMat = new THREE.MeshBasicMaterial({
@@ -4151,28 +4379,21 @@ Object.assign(Xiangqi3DApp.prototype, {
         color: 0xffedd5,
         side: THREE.DoubleSide
       });
-      const lavaGlowPoolMat = new THREE.MeshBasicMaterial({
-        color: 0xf97316,
-        blending: THREE.AdditiveBlending,
-        side: THREE.DoubleSide,
-        depthWrite: false
-      });
 
-      const lavaFloorBase = new THREE.Mesh(new THREE.CylinderGeometry(54, 54, 0.4, 64), lavaBasaltMat);
+      const lavaFloorBase = new THREE.Mesh(new THREE.CylinderGeometry(58, 58, 0.4, 64), lavaBasaltMat);
       lavaFloorBase.position.y = -0.20;
       lavaFloorBase.renderOrder = -14;
-      const lavaRiverOverlay = new THREE.Mesh(new THREE.CircleGeometry(38, 64), lavaMagmaRiverMat);
+      const lavaRiverOverlay = new THREE.Mesh(new THREE.CircleGeometry(42, 64), lavaMagmaRiverMat);
       lavaRiverOverlay.rotation.x = -Math.PI / 2;
       lavaRiverOverlay.position.y = 0.008;
       lavaRiverOverlay.renderOrder = -12;
       lavaWorldMapGroup.add(lavaFloorBase, lavaRiverOverlay);
 
-      // 熔岩地图四周的破碎黑曜石火山群峰与翘起地壳岩板
-      for (let i = 0; i < 20; i++) {
-        const a = (i / 20) * Math.PI * 2;
-        const r = 4.2 + (i % 3) * 3.8;
+      for (let i = 0; i < 24; i++) {
+        const a = (i / 24) * Math.PI * 2;
+        const r = 4.6 + (i % 3) * 3.8;
         const slab = new THREE.Mesh(
-          new THREE.BoxGeometry(1.6 + (i % 3) * 0.8, 0.35, 1.4 + (i % 2) * 0.9),
+          new THREE.BoxGeometry(1.6 + (i % 3) * 0.8, 0.38, 1.4 + (i % 2) * 0.9),
           lavaBasaltMat
         );
         slab.position.set(Math.cos(a) * r, 0.08, Math.sin(a) * r);
@@ -4181,44 +4402,63 @@ Object.assign(Xiangqi3DApp.prototype, {
         slab.renderOrder = -10;
         lavaWorldMapGroup.add(slab);
       }
-      for (let m = 0; m < 14; m++) {
-        const ma = (m / 14) * Math.PI * 2 + 0.12;
-        const mr = 22.0 + (m % 2) * 4.5;
-        const mh = 8.5 + (m % 4) * 3.0;
-        const volcano = new THREE.Mesh(new THREE.ConeGeometry(5.8, mh, 7), lavaBasaltMat);
-        volcano.position.set(Math.cos(ma) * mr, mh * 0.45, Math.sin(ma) * mr);
-        volcano.renderOrder = -12;
-        const craterGlow = new THREE.Mesh(new THREE.ConeGeometry(1.8, 2.2, 7), lavaGlowPoolMat);
-        craterGlow.position.set(Math.cos(ma) * mr, mh * 0.88, Math.sin(ma) * mr);
-        lavaWorldMapGroup.add(volcano, craterGlow);
+      for (let m = 0; m < 18; m++) {
+        const ma = (m / 18) * Math.PI * 2 + 0.12;
+        const mr = 18.0 + (m % 3) * 4.2;
+        const mh = 3.2 + (m % 4) * 2.4;
+        const spire = new THREE.Mesh(new THREE.ConeGeometry(0.9 + (m % 3) * 0.5, mh, 6), lavaBasaltMat);
+        spire.position.set(Math.cos(ma) * mr, mh * 0.45, Math.sin(ma) * mr);
+        spire.rotation.z = ((m % 3) - 1) * 0.14;
+        spire.renderOrder = -11;
+        lavaWorldMapGroup.add(spire);
       }
 
+      const kingGroundHalo = new THREE.Mesh(
+        new THREE.RingGeometry(0.75, 1.35, 36),
+        crimsonGlowMat.clone()
+      );
+      kingGroundHalo.rotation.x = -Math.PI / 2;
+      kingGroundHalo.position.set(0, 0.03, 0);
+      kingGroundHalo.visible = false;
+      group.add(kingGroundHalo);
+
       // =======================================================================
-      // 太阳与巨大熔岩球总成 (giantSunGroup: 初始为纯白耀眼太阳 -> 融合两“炮”后化为几乎覆盖全屏的巨大熔岩球)
+      // 太阳与熔岩球总成 (giantSunGroup)
+      // 严格遵循参照视频《白.mp4》01s-05s：
+      // 仰视时太阳位于屏幕正中心（半径 1.72，占屏幕约 30%，绝不覆盖全屏！），
+      // 四周圆周被浓密云环围绕在中间；而在最后阶段 (p >= 0.74) 近景切镜时再放大至压顶巨球！
       // =======================================================================
       const sunStartApex = new THREE.Vector3(0, 17.5, 0);
       const giantSunGroup = new THREE.Group();
       giantSunGroup.position.copy(sunStartApex);
       group.add(giantSunGroup);
 
-      // 初始白色太阳层 (whiteSunCore + whiteSunHalo)
       const whiteSunCoreMat = new THREE.MeshBasicMaterial({
         color: 0xffffff,
         transparent: true,
         opacity: 1.0
       });
       const whiteSunHaloMat = new THREE.MeshBasicMaterial({
-        color: 0xfffbeb,
+        color: 0xfef08a,
         transparent: true,
         opacity: 0.78,
         blending: THREE.AdditiveBlending,
         depthWrite: false
       });
-      const whiteSunCore = new THREE.Mesh(new THREE.SphereGeometry(5.6, 48, 48), whiteSunCoreMat);
-      const whiteSunHalo = new THREE.Mesh(new THREE.SphereGeometry(6.6, 40, 40), whiteSunHaloMat);
-      giantSunGroup.add(whiteSunCore, whiteSunHalo);
+      const whiteSunCore = new THREE.Mesh(new THREE.SphereGeometry(1.72, 48, 48), whiteSunCoreMat);
+      const whiteSunHalo = new THREE.Mesh(new THREE.SphereGeometry(2.12, 40, 40), whiteSunHaloMat);
+      const solarFlareGroup = new THREE.Group();
+      for (let sf = 0; sf < 12; sf++) {
+        const ang = (sf / 12) * Math.PI * 2;
+        const spike = new THREE.Mesh(new THREE.ConeGeometry(0.28, 1.25, 8), whiteSunHaloMat);
+        spike.position.set(Math.cos(ang) * 2.05, 0, Math.sin(ang) * 2.05);
+        spike.rotation.z = -Math.PI / 2;
+        spike.rotation.y = -ang;
+        solarFlareGroup.add(spike);
+      }
+      giantSunGroup.add(whiteSunCore, whiteSunHalo, solarFlareGroup);
 
-      // 转化后的几乎覆盖全屏的巨大熔岩球层 (lavaSphereCore + lavaCrustMesh + lavaCoronaMesh)
+      // 转化后的熔岩球层 (基础半径 1.78，仰视时位于圆周云环正中心，不覆盖全屏)
       const lavaSphereCoreMat = new THREE.MeshBasicMaterial({
         map: magmaSphereTex,
         color: 0xffedd5,
@@ -4240,13 +4480,12 @@ Object.assign(Xiangqi3DApp.prototype, {
         blending: THREE.AdditiveBlending,
         depthWrite: false
       });
-      const lavaSphereCore = new THREE.Mesh(new THREE.SphereGeometry(5.85, 48, 48), lavaSphereCoreMat);
-      const lavaCrustWire = new THREE.Mesh(new THREE.IcosahedronGeometry(5.96, 3), lavaCrustWireMat);
-      const lavaCoronaMesh = new THREE.Mesh(new THREE.SphereGeometry(6.85, 40, 40), lavaCoronaMat);
+      const lavaSphereCore = new THREE.Mesh(new THREE.SphereGeometry(1.78, 48, 48), lavaSphereCoreMat);
+      const lavaCrustWire = new THREE.Mesh(new THREE.IcosahedronGeometry(1.83, 3), lavaCrustWireMat);
+      const lavaCoronaMesh = new THREE.Mesh(new THREE.SphereGeometry(2.14, 40, 40), lavaCoronaMat);
       giantSunGroup.add(lavaSphereCore, lavaCrustWire, lavaCoronaMesh);
 
-      // 熔岩球表面的凹凸熔岩山脉隆起块
-      const lavaSurfaceBumps = [];
+      const lavaBumps = [];
       for (let b = 0; b < 24; b++) {
         const phiB = Math.acos(1 - (2 * (b + 0.5)) / 24);
         const thetaB = Math.PI * (1 + Math.sqrt(5)) * b;
@@ -4255,87 +4494,173 @@ Object.assign(Xiangqi3DApp.prototype, {
           Math.cos(phiB),
           Math.sin(phiB) * Math.sin(thetaB)
         ).normalize();
-        const bump = new THREE.Mesh(new THREE.DodecahedronGeometry(0.95, 1), lavaSphereCoreMat);
-        bump.position.copy(dirV).multiplyScalar(5.45);
+        const bump = new THREE.Mesh(new THREE.DodecahedronGeometry(0.28, 1), lavaSphereCoreMat);
+        bump.position.copy(dirV).multiplyScalar(1.66);
         giantSunGroup.add(bump);
-        lavaSurfaceBumps.push(bump);
+        lavaBumps.push(bump);
       }
 
       // =======================================================================
-      // 环绕并半遮挡白色太阳的 20 团立体云层 (wreathedClouds)
-      // 在熔岩球下坠时向四周慢慢驱散，且紧贴的云朵与全部云层逐渐由纯白变为火红熔岩色！
+      // 最后阶段专属：从熔岩球自身变亮扩散的层叠球面气浪总成 (selfAirWaveGroup)
+      // 还原用户要求：“最后的光效改为气浪从熔岩球自身变亮，熔岩球落地激起地震，石块飞起，整个屏幕再慢慢到全白”
       // =======================================================================
+      const selfAirWaveGroup = new THREE.Group();
+      selfAirWaveGroup.visible = false;
+      giantSunGroup.add(selfAirWaveGroup);
+
+      const selfWaveInnerMat = new THREE.MeshBasicMaterial({
+        color: 0xffffff,
+        transparent: true,
+        opacity: 0.0,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+        side: THREE.DoubleSide
+      });
+      const selfWaveMidMat = new THREE.MeshBasicMaterial({
+        color: 0xfef08a,
+        transparent: true,
+        opacity: 0.0,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+        side: THREE.DoubleSide
+      });
+      const selfWaveOuterMat = new THREE.MeshBasicMaterial({
+        color: 0xf97316,
+        transparent: true,
+        opacity: 0.0,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+        side: THREE.DoubleSide
+      });
+
+      const selfWaveShell1 = new THREE.Mesh(new THREE.SphereGeometry(1.88, 40, 32), selfWaveInnerMat);
+      const selfWaveShell2 = new THREE.Mesh(new THREE.SphereGeometry(2.15, 40, 32), selfWaveMidMat);
+      const selfWaveShell3 = new THREE.Mesh(new THREE.SphereGeometry(2.48, 36, 28), selfWaveOuterMat);
+      const selfWaveSkirtRing1 = new THREE.Mesh(new THREE.TorusGeometry(1.95, 0.24, 14, 48), selfWaveMidMat);
+      selfWaveSkirtRing1.rotation.x = Math.PI / 2;
+      selfWaveSkirtRing1.position.y = -0.85;
+      const selfWaveSkirtRing2 = new THREE.Mesh(new THREE.TorusGeometry(2.45, 0.32, 14, 48), selfWaveOuterMat);
+      selfWaveSkirtRing2.rotation.x = Math.PI / 2;
+      selfWaveSkirtRing2.position.y = -0.55;
+      selfAirWaveGroup.add(selfWaveShell1, selfWaveShell2, selfWaveShell3, selfWaveSkirtRing1, selfWaveSkirtRing2);
+
+      const selfWaveRibbons = [];
+      for (let sr = 0; sr < 20; sr++) {
+        const ra = (sr / 20) * Math.PI * 2;
+        const rr = 1.75 + (sr % 3) * 0.35;
+        const rib = new THREE.Mesh(
+          new THREE.ConeGeometry(0.18, 2.2, 10),
+          sr % 2 === 0 ? selfWaveInnerMat : selfWaveMidMat
+        );
+        rib.position.set(Math.cos(ra) * rr, -0.75, Math.sin(ra) * rr);
+        rib.rotation.z = -Math.cos(ra) * 0.55;
+        rib.rotation.x = Math.sin(ra) * 0.55;
+        selfAirWaveGroup.add(rib);
+        selfWaveRibbons.push({ rib, ra, rr });
+      }
+
+      // =======================================================================
+      // 圆周环绕太阳的 360° 浓密云环系统 (circularCloudRingDiscs + 36 团圆周立体云簇 wreathedClouds)
+      // 仰视时将白色太阳完整围在屏幕正中间，并在变成熔岩球缓缓下坠时沿圆周缓缓向外散开！
+      // =======================================================================
+      const cloudRingDiscMatInner = new THREE.MeshBasicMaterial({
+        map: cloudVortexTex,
+        transparent: true,
+        opacity: 0.92,
+        side: THREE.DoubleSide,
+        depthWrite: false
+      });
+      const cloudRingDiscMatOuter = new THREE.MeshBasicMaterial({
+        map: cloudVortexTex,
+        color: 0xd97706,
+        transparent: true,
+        opacity: 0.85,
+        side: THREE.DoubleSide,
+        depthWrite: false
+      });
+      const cloudRingDiscInner = new THREE.Mesh(new THREE.RingGeometry(1.78, 6.4, 64), cloudRingDiscMatInner);
+      cloudRingDiscInner.rotation.x = Math.PI / 2;
+      cloudRingDiscInner.position.set(0, 16.8, 0);
+      const cloudRingDiscOuter = new THREE.Mesh(new THREE.RingGeometry(2.45, 8.8, 64), cloudRingDiscMatOuter);
+      cloudRingDiscOuter.rotation.x = Math.PI / 2;
+      cloudRingDiscOuter.position.set(0, 15.9, 0);
+      group.add(cloudRingDiscInner, cloudRingDiscOuter);
+
       const wreathedClouds = [];
-      for (let c = 0; c < 20; c++) {
+      for (let c = 0; c < 36; c++) {
+        const ringLayer = c < 12 ? 0 : (c < 24 ? 1 : 2); // 0: 内环紧贴太阳圆周, 1: 中环云墙, 2: 外环浓云
         const cMat = new THREE.MeshStandardMaterial({
-          color: 0xffffff,
-          emissive: 0x334155,
-          emissiveIntensity: 0.18,
+          color: ringLayer === 0 ? 0xfef3c7 : (ringLayer === 1 ? 0xd97706 : 0x451a03),
+          emissive: ringLayer === 0 ? 0xd97706 : (ringLayer === 1 ? 0x7c2d12 : 0x1f0909),
+          emissiveIntensity: ringLayer === 0 ? 0.48 : 0.28,
           roughness: 0.88,
           transparent: true,
-          opacity: 0.90,
+          opacity: 0.94,
           depthWrite: false
         });
         const cGrp = new THREE.Group();
         const puffCount = 5;
         for (let pf = 0; pf < puffCount; pf++) {
           const puff = new THREE.Mesh(
-            new THREE.SphereGeometry(1.15 - (pf % 2) * 0.25, 16, 14),
+            new THREE.SphereGeometry(0.95 - (pf % 2) * 0.18 + ringLayer * 0.22, 14, 12),
             cMat
           );
-          puff.scale.set(1.55, 0.58, 1.25);
+          puff.scale.set(1.55, 0.62, 1.25);
           puff.position.set(
-            (pf - 2) * 0.85,
-            (pf % 2) * 0.22,
-            ((pf + 1) % 2) * 0.45
+            (pf - 2) * 0.65,
+            (pf % 2) * 0.18,
+            ((pf + 1) % 2) * 0.35
           );
           cGrp.add(puff);
         }
-        // 前 8 团云紧贴太阳下方与周围遮挡，后 12 团环绕成高空云海层 (y ≈ 9.2..14.5)
-        const isInnerWreath = c < 8;
-        const baseAngle = (c / (isInnerWreath ? 8 : 12)) * Math.PI * 2 + (isInnerWreath ? 0.2 : 0.5);
-        const baseRad = isInnerWreath ? (2.2 + (c % 3) * 1.4) : (6.0 + (c % 3) * 2.6);
-        const baseY = isInnerWreath ? (12.8 + (c % 3) * 0.8) : (9.2 + (c % 2) * 1.1);
+        const idxInLayer = c % 12;
+        const baseAngle = (idxInLayer / 12) * Math.PI * 2 + ringLayer * 0.26;
+        // 内圈半径 2.35（刚好围住半径 1.72 的白色太阳四周！），中圈 3.65，外圈 5.25（充满整个屏幕圆周外围！）
+        const baseRad = ringLayer === 0
+          ? (2.32 + (idxInLayer % 2) * 0.28)
+          : (ringLayer === 1 ? (3.65 + (idxInLayer % 3) * 0.35) : (5.25 + (idxInLayer % 3) * 0.55));
+        const baseY = ringLayer === 0
+          ? (16.5 + (idxInLayer % 2) * 0.35)
+          : (ringLayer === 1 ? (15.8 + (idxInLayer % 2) * 0.45) : (15.0 + (idxInLayer % 2) * 0.55));
         cGrp.position.set(Math.cos(baseAngle) * baseRad, baseY, Math.sin(baseAngle) * baseRad);
         cGrp.rotation.y = -baseAngle;
         group.add(cGrp);
-        wreathedClouds.push({ cGrp, cMat, isInnerWreath, baseAngle, baseRad, baseY, idx: c });
+        wreathedClouds.push({ cGrp, cMat, ringLayer, baseAngle, baseRad, baseY, idx: c });
       }
 
       // =======================================================================
-      // 周围从缓慢逐渐加速下坠的熔岩石头碎片群 (fallingLavaRocks)
-      // + 1 颗穿过屏幕正中心的大号特写熔岩碎片 (heroCenterFragment)
-      // + 1 颗从空中砸向镜头前方引发瞬间遮蔽全屏爆炸的特写碎片 (screenBlockerFragment)
+      // 陨石碎片、远小近大透视分层 (64 颗)、每颗落地激起小石子 & 触发地震镜头震动
+      // + 视角切换 1：经过屏幕中心的大碎片砸中靠近屏幕的地板掀起气浪与石块遮挡全屏 (cut1FloorBlastGroup)
+      // + 视角切换 2：近景爆炸遮屏切入终局特写 (screenBlockerExplosionGroup)
+      // + 终局熔岩球落地飞石群 (finalFlyingBoulders, 56 块大飞石)
       // =======================================================================
       const rockCragMat = new THREE.MeshStandardMaterial({
-        color: 0x270e04,
+        color: 0x220a04,
         emissive: 0xea580c,
-        emissiveIntensity: 0.72,
-        roughness: 0.65
+        emissiveIntensity: 0.82,
+        roughness: 0.62
       });
       const rockFlameWakeMat = new THREE.MeshBasicMaterial({
         color: 0xf97316,
         transparent: true,
-        opacity: 0.75,
+        opacity: 0.84,
         blending: THREE.AdditiveBlending,
         depthWrite: false
       });
 
-      const makeMeteorRock = (radius = 0.38) => {
+      const makeMeteorRock = (radius = 0.38, tailLenMult = 3.8) => {
         const rg = new THREE.Group();
-        // 独立自转的岩石本体容器 spinBody（仅让岩石块翻滚自转，拖尾 wakeCone 保持在父容器 rg 中朝向正上方绝不随岩石旋转！）
         const spinBody = new THREE.Group();
         const core = new THREE.Mesh(new THREE.DodecahedronGeometry(radius, 1), rockCragMat);
         core.scale.set(1.2, 0.88, 1.05);
-        const glowShell = new THREE.Mesh(new THREE.IcosahedronGeometry(radius * 1.06, 0), goldGlowMat.clone());
+        const glowShell = new THREE.Mesh(new THREE.IcosahedronGeometry(radius * 1.08, 0), goldGlowMat.clone());
         glowShell.material.wireframe = true;
         spinBody.add(core, glowShell);
 
-        // 垂直向上延伸的双层烈焰尾迹（外层火尾 + 内层炽金尾核），固定在 rg 上始终沿下落反方向拖曳，不随碎片自转
-        const wakeCone = new THREE.Mesh(new THREE.ConeGeometry(radius * 0.82, radius * 3.2, 12), rockFlameWakeMat);
-        wakeCone.position.y = radius * 1.55;
-        const innerWakeCone = new THREE.Mesh(new THREE.ConeGeometry(radius * 0.45, radius * 2.2, 10), goldGlowMat.clone());
-        innerWakeCone.position.y = radius * 1.15;
+        const wakeCone = new THREE.Mesh(new THREE.ConeGeometry(radius * 0.85, radius * tailLenMult, 12), rockFlameWakeMat);
+        wakeCone.position.y = radius * (tailLenMult * 0.48);
+        const innerWakeCone = new THREE.Mesh(new THREE.ConeGeometry(radius * 0.48, radius * (tailLenMult * 0.72), 10), goldGlowMat.clone());
+        innerWakeCone.position.y = radius * (tailLenMult * 0.35);
 
         rg.add(spinBody, wakeCone, innerWakeCone);
         rg.userData = { spinBody, wakeCone, innerWakeCone };
@@ -4344,29 +4669,133 @@ Object.assign(Xiangqi3DApp.prototype, {
         return rg;
       };
 
-      const fallingLavaRocks = Array.from({ length: 26 }, (_, i) => {
-        const ang = (i / 26) * Math.PI * 2 + (i % 3) * 0.25;
-        const rad = 1.6 + (i % 6) * 1.45;
-        const startT = 0.40 + (i % 8) * 0.032;
-        const dur = 0.16 + (i % 3) * 0.03;
-        const mesh = makeMeteorRock(0.26 + (i % 3) * 0.10);
+      // 64 颗远小近大的熔岩陨石碎片，每颗配备专属落地冲击环 + 6 颗落地激起的小石子 (共 384 颗伴随碎片溅起的小石子！)
+      const TOTAL_METEORS = 64;
+      const fallingLavaRocks = Array.from({ length: TOTAL_METEORS }, (_, i) => {
+        // 按深度分为远景(0..23)、中景(24..47)、近景(48..63)三层，实现极其鲜明的「碎片远小近大」！
+        let x, z, depthScale;
+        if (i < 24) {
+          // 远景小碎片 (z: -12.5 -> -3.8)
+          const spread = ((i / 23) - 0.5) * 18.0;
+          x = spread + Math.sin(i * 2.1) * 0.9;
+          z = -12.5 + (i % 6) * 1.45;
+          depthScale = 0.36 + (i % 4) * 0.06;
+        } else if (i < 48) {
+          // 中景中等碎片 (z: -3.4 -> +3.6)
+          const j = i - 24;
+          const spread = ((j / 23) - 0.5) * 13.5;
+          x = spread + Math.cos(j * 1.7) * 0.7;
+          z = -3.4 + (j % 7) * 1.05;
+          depthScale = 0.78 + (j % 4) * 0.11;
+        } else {
+          // 近景大碎片 (z: +4.0 -> +9.8，靠近镜头，尺寸硕大！)
+          const k = i - 48;
+          const spread = ((k / 15) - 0.5) * 9.6;
+          x = spread + Math.sin(k * 1.9) * 0.5;
+          z = 4.0 + (k % 5) * 1.25;
+          depthScale = 1.42 + (k % 4) * 0.22;
+        }
+
+        const baseRadius = 0.28 * depthScale;
+        const mesh = makeMeteorRock(baseRadius, 4.2);
+        const impactRing = new THREE.Mesh(
+          new THREE.RingGeometry(0.14 * depthScale, 0.65 * depthScale, 20),
+          i % 2 === 0 ? goldGlowMat.clone() : crimsonGlowMat.clone()
+        );
+        impactRing.rotation.x = -Math.PI / 2;
+        impactRing.visible = false;
+        group.add(impactRing);
+
+        // 每颗碎片落地时激起的 6 颗弹跳小石子
+        const impactPebbles = Array.from({ length: 6 }, (__, pIdx) => {
+          const pa = (pIdx / 6) * Math.PI * 2 + (i % 5) * 0.2;
+          const pebMesh = new THREE.Mesh(
+            new THREE.DodecahedronGeometry((0.055 + (pIdx % 3) * 0.025) * Math.max(0.65, depthScale * 0.85), 0),
+            pIdx % 2 === 0 ? lavaBasaltMat : rockCragMat
+          );
+          pebMesh.visible = false;
+          group.add(pebMesh);
+          return {
+            pebMesh,
+            vx: Math.cos(pa) * (0.45 + (pIdx % 3) * 0.32) * Math.max(0.7, depthScale),
+            vz: Math.sin(pa) * (0.45 + (pIdx % 3) * 0.32) * Math.max(0.7, depthScale),
+            jumpH: (0.55 + (pIdx % 3) * 0.38) * Math.max(0.7, depthScale)
+          };
+        });
+
         return {
           mesh,
-          x: Math.cos(ang) * rad,
-          z: Math.sin(ang) * rad,
-          startY: 14.5 + (i % 4) * 1.5,
-          startT,
-          dur,
+          impactRing,
+          impactPebbles,
+          x,
+          z,
+          depthScale,
+          startY: 13.5 + (i % 5) * 1.35,
+          earlyStartT: 0.27 + (i % 10) * 0.014,
+          earlyDur: 0.14 + (i % 3) * 0.02,
+          earlyImpacted: false,
+          prevCycle: -1,
           idx: i
         };
       });
 
-      // 穿过屏幕正中心的大号特写熔岩碎片 (heroCenterFragment)
-      const heroCenterFragment = makeMeteorRock(0.72);
+      // 经过屏幕中心砸中靠近屏幕地板的大碎片 (heroCenterFragment) + 靠近屏幕地板掀起的遮屏气浪与飞石群 (cut1FloorBlastGroup)
+      const heroCenterFragment = makeMeteorRock(0.84, 4.2);
       heroCenterFragment.renderOrder = 30;
 
-      // 砸向镜头正前方引发遮蔽全屏爆炸的特写碎片 (screenBlockerFragment) 与全屏遮挡爆炸球
-      const screenBlockerFragment = makeMeteorRock(0.85);
+      const cut1FloorBlastGroup = new THREE.Group();
+      cut1FloorBlastGroup.visible = false;
+      cut1FloorBlastGroup.renderOrder = 34;
+      const cut1WaveCoreMat = new THREE.MeshBasicMaterial({
+        color: 0xfef3c7,
+        transparent: true,
+        opacity: 0,
+        depthTest: false,
+        side: THREE.DoubleSide
+      });
+      const cut1WaveOuterMat = new THREE.MeshBasicMaterial({
+        color: 0xea580c,
+        transparent: true,
+        opacity: 0,
+        depthTest: false,
+        side: THREE.DoubleSide
+      });
+      const cut1WaveDome = new THREE.Mesh(new THREE.SphereGeometry(2.6, 28, 24), cut1WaveCoreMat);
+      const cut1WaveShell = new THREE.Mesh(new THREE.SphereGeometry(3.6, 28, 24), cut1WaveOuterMat);
+      cut1FloorBlastGroup.add(cut1WaveShell, cut1WaveDome);
+
+      const cut1FlyingRocks = Array.from({ length: 28 }, (_, i) => {
+        const rkMesh = new THREE.Mesh(
+          new THREE.DodecahedronGeometry(0.24 + (i % 4) * 0.14, 0),
+          i % 3 === 0 ? rockCragMat : lavaBasaltMat
+        );
+        rkMesh.renderOrder = 36;
+        cut1FloorBlastGroup.add(rkMesh);
+        const a = (i / 28) * Math.PI * 2 + (i % 3) * 0.15;
+        return {
+          rkMesh,
+          a,
+          rad: 0.25 + (i % 5) * 0.36,
+          vy: 0.45 + (i % 4) * 0.35
+        };
+      });
+      group.add(cut1FloorBlastGroup);
+
+      // 水平视角切入后中心大碎片在场地中央留下的冲天余波火柱 (heroImpactPillar)
+      const heroImpactPillar = new THREE.Group();
+      heroImpactPillar.position.set(0, 0.05, -0.4);
+      heroImpactPillar.visible = false;
+      const heroPillarCore = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.88, 11.5, 16), goldGlowMat.clone());
+      heroPillarCore.position.y = 5.75;
+      const heroPillarOuter = new THREE.Mesh(new THREE.CylinderGeometry(0.58, 1.50, 11.5, 16), crimsonGlowMat.clone());
+      heroPillarOuter.position.y = 5.75;
+      const heroPillarBaseWave = new THREE.Mesh(new THREE.RingGeometry(0.4, 2.6, 32), goldGlowMat.clone());
+      heroPillarBaseWave.rotation.x = -Math.PI / 2;
+      heroImpactPillar.add(heroPillarCore, heroPillarOuter, heroPillarBaseWave);
+      group.add(heroImpactPillar);
+
+      // 视角切换 2：砸向镜头正前方引发遮蔽全屏爆炸的特写碎片 (screenBlockerFragment)
+      const screenBlockerFragment = makeMeteorRock(0.90, 3.6);
       screenBlockerFragment.renderOrder = 32;
       const screenBlockerExplosionGroup = new THREE.Group();
       screenBlockerExplosionGroup.visible = false;
@@ -4380,45 +4809,72 @@ Object.assign(Xiangqi3DApp.prototype, {
         new THREE.MeshBasicMaterial({ color: 0xea580c, transparent: true, opacity: 0, depthTest: false })
       );
       screenBlockerExplosionGroup.add(blockerFireShell, blockerFlashCore);
+      const blockerSilhouetteRocks = Array.from({ length: 18 }, (_, i) => {
+        const sr = new THREE.Mesh(
+          new THREE.DodecahedronGeometry(0.20 + (i % 3) * 0.11, 0),
+          lavaBasaltMat
+        );
+        sr.renderOrder = 36;
+        screenBlockerExplosionGroup.add(sr);
+        const a = (i / 18) * Math.PI * 2;
+        return { sr, a, r: 0.32 + (i % 4) * 0.34 };
+      });
       group.add(screenBlockerExplosionGroup);
 
-      // 地面受碎片撞击及最后熔岩球压境时掀起的 48 颗弹飞小石子 (groundPebbles)
-      const groundPebbles = Array.from({ length: 48 }, (_, i) => {
-        const a = (i / 48) * Math.PI * 2 + (i % 5) * 0.14;
-        const dist = 0.45 + (i % 8) * 0.72;
-        const peb = new THREE.Mesh(
-          new THREE.DodecahedronGeometry(0.08 + (i % 4) * 0.045, 0),
-          i % 3 === 0 ? rockCragMat : lavaBasaltMat
+      // 终局阶段 (p >= 0.74)：熔岩球落地激起地震时冲天飞起的 56 块巨石与碎岩块 (finalFlyingBoulders)
+      const finalFlyingBoulders = Array.from({ length: 56 }, (_, i) => {
+        const a = (i / 56) * Math.PI * 2 + (i % 5) * 0.14;
+        const dist = 0.55 + (i % 8) * 0.82;
+        const bSize = 0.12 + (i % 5) * 0.085;
+        const bMesh = new THREE.Mesh(
+          new THREE.DodecahedronGeometry(bSize, 0),
+          i % 4 === 0 ? rockCragMat : lavaBasaltMat
         );
-        peb.visible = false;
-        peb.renderOrder = 22;
-        group.add(peb);
+        bMesh.scale.set(1.35, 0.78 + (i % 3) * 0.25, 1.15);
+        bMesh.visible = false;
+        bMesh.renderOrder = 28;
+        group.add(bMesh);
         return {
-          peb,
+          bMesh,
           baseX: Math.cos(a) * dist,
-          baseZ: Math.sin(a) * dist,
-          vx: Math.cos(a) * (0.8 + (i % 4) * 0.5),
-          vz: Math.sin(a) * (0.8 + (i % 4) * 0.5),
-          jumpH: 1.15 + (i % 5) * 0.65,
-          trigT: 0.54 + (i % 10) * 0.018,
+          baseZ: Math.sin(a) * dist + (i % 3 === 0 ? 2.2 : 0),
+          vx: Math.cos(a) * (0.95 + (i % 4) * 0.65),
+          vz: Math.sin(a) * (0.95 + (i % 4) * 0.65),
+          upSpeed: 2.8 + (i % 6) * 0.95,
+          delay: (i % 8) * 0.018,
           idx: i
         };
       });
 
       const whiteColor = new THREE.Color(0xffffff);
-      const warmCloudColor = new THREE.Color(0xfb923c);
-      const magmaCloudColor = new THREE.Color(0xdc2626);
-      const darkAshCloudColor = new THREE.Color(0x7f1d1d);
+      const solarGoldColor = new THREE.Color(0xfef08a);
+      const warmCloudColor = new THREE.Color(0xf97316);
+      const magmaCloudColor = new THREE.Color(0xb91c1c);
+      const darkAshCloudColor = new THREE.Color(0x2e1018);
       const skyBlueColor = new THREE.Color(0xdbeafe);
-      const skyMagmaColor = new THREE.Color(0x450a0a);
+      const skyMagmaColor = new THREE.Color(0x240710);
+
+      let cut1ImpactTriggered = false;
+      let cut2ImpactTriggered = false;
+      let lastRumbleP = -1;
 
       return wrapUpdater((p, dt, fade = 1) => {
-        // 0.92 -> 0.99 在纯白闪光掩护下无缝切回终局棋盘
-        const cgWeight = smoothstep(0.01, 0.12, p) * (1 - smoothstep(0.92, 0.99, p)) * fade;
+        // 保持 3D 场景直到 p=1.00 全白完成，绝不在 Stage 2 中途提前褪掉全白！
+        const cgWeight = smoothstep(0.01, 0.10, p) * fade;
         vfxContext?.setSceneTransition?.(cgWeight);
 
-        // 0.35 趁镜头仰视天空时，把地面草地地图 (cgScene) 无感切换为熔岩地图 (lavaWorldMapGroup)！
-        const useLavaMap = p >= 0.35;
+        if (p < 0.02) {
+          cut1ImpactTriggered = false;
+          cut2ImpactTriggered = false;
+          lastRumbleP = -1;
+          fallingLavaRocks.forEach((rk) => {
+            rk.earlyImpacted = false;
+            rk.prevCycle = -1;
+          });
+        }
+
+        // p >= 0.26 趁镜头仰视高空太阳时将地面切换为炼狱熔岩地图
+        const useLavaMap = p >= 0.26;
         if (!useLavaMap) {
           cgScene.setFade(cgWeight, dt, p);
           lavaWorldMapGroup.visible = false;
@@ -4429,28 +4885,33 @@ Object.assign(Xiangqi3DApp.prototype, {
           lavaWorldMapGroup.position.y = -(1 - cgWeight) * 0.4;
         }
 
-        // 自转动画
-        lavaSphereCore.rotation.y += dt * 0.45;
-        lavaCrustWire.rotation.y -= dt * 0.35;
+        // 太阳与熔岩球自转
+        lavaSphereCore.rotation.y += dt * 0.48;
+        lavaCrustWire.rotation.y -= dt * 0.36;
         lavaCoronaMesh.rotation.z += dt * 0.55;
+        solarFlareGroup.rotation.y += dt * 0.85;
+        cloudRingDiscInner.rotation.z -= dt * 0.22;
+        cloudRingDiscOuter.rotation.z += dt * 0.15;
 
-        // 太阳转化为熔岩球进度 (0.28 -> 0.42)
-        const lavaTransformT = smoothstep(0.28, 0.42, p);
+        // 白色太阳转化为熔岩球进度 (0.22 -> 0.34)
+        const lavaTransformT = smoothstep(0.22, 0.34, p);
         whiteSunCoreMat.opacity = (1 - smoothstep(0.15, 0.85, lavaTransformT)) * fade;
         whiteSunHaloMat.opacity = (1 - lavaTransformT) * 0.78 * fade;
         whiteSunCore.visible = whiteSunCoreMat.opacity > 0.02;
         whiteSunHalo.visible = whiteSunHaloMat.opacity > 0.02;
+        solarFlareGroup.visible = whiteSunHalo.visible;
 
         lavaSphereCoreMat.opacity = smoothstep(0.05, 0.75, lavaTransformT) * fade;
-        lavaCrustWireMat.opacity = smoothstep(0.15, 0.90, lavaTransformT) * 0.72 * fade;
-        lavaCoronaMat.opacity = smoothstep(0.10, 0.85, lavaTransformT) * 0.68 * fade;
+        lavaCrustWireMat.opacity = smoothstep(0.15, 0.90, lavaTransformT) * 0.82 * fade;
+        lavaCoronaMat.opacity = smoothstep(0.10, 0.85, lavaTransformT) * 0.75 * fade;
         lavaSphereCore.visible = lavaSphereCoreMat.opacity > 0.02;
         lavaCrustWire.visible = lavaCrustWireMat.opacity > 0.02;
         lavaCoronaMesh.visible = lavaCoronaMat.opacity > 0.02;
+        lavaBumps.forEach((b) => { b.visible = lavaSphereCore.visible; });
 
-        // 天空背景与云层逐渐变色 (0.30 -> 0.56) 及内圈云朵向四周驱散 (0.34 -> 0.54)
-        const skyColorShiftT = smoothstep(0.30, 0.56, p);
-        const cloudDisperseT = smoothstep(0.34, 0.54, p);
+        // 天空与圆周云环变色 & 变成熔岩球缓缓下坠时云朵在圆周缓缓散开 (0.23 -> 0.46)
+        const skyColorShiftT = smoothstep(0.22, 0.46, p);
+        const cloudDisperseT = smoothstep(0.23, 0.46, p);
         if (this.scene && this.scene.background && cgWeight > 0.1) {
           this.scene.background.copy(skyBlueColor).lerp(skyMagmaColor, skyColorShiftT);
           if (this.scene.fog) {
@@ -4458,44 +4919,60 @@ Object.assign(Xiangqi3DApp.prototype, {
           }
         }
 
+        // 圆周漩涡云环圆盘在仰视阶段完整围住太阳，并在熔岩球下坠时沿圆周缓缓向外散开扩大
+        const showUpwardCloudRing = p < 0.475;
+        cloudRingDiscInner.visible = showUpwardCloudRing;
+        cloudRingDiscOuter.visible = showUpwardCloudRing;
+        if (showUpwardCloudRing) {
+          const innerExpand = 1.0 + cloudDisperseT * 0.78;
+          const outerExpand = 1.0 + cloudDisperseT * 0.52;
+          cloudRingDiscInner.scale.setScalar(innerExpand);
+          cloudRingDiscOuter.scale.setScalar(outerExpand);
+          cloudRingDiscMatInner.opacity = (0.94 - cloudDisperseT * 0.35) * cgWeight;
+          cloudRingDiscMatOuter.opacity = (0.88 - cloudDisperseT * 0.25) * cgWeight;
+        }
+
         wreathedClouds.forEach((cl) => {
-          cl.cGrp.visible = cgWeight > 0.05 && p < 0.94;
-          // 紧贴太阳的内圈云朵率先变红并向四周被驱散推开；随后所有云朵在 p=0.56 前完全变为熔岩赤红色！
-          const localColorT = cl.isInnerWreath
-            ? smoothstep(0.28, 0.46, p)
-            : smoothstep(0.34, 0.54, p);
+          cl.cGrp.visible = cgWeight > 0.05;
+          const localColorT = cl.ringLayer === 0
+            ? smoothstep(0.22, 0.38, p)
+            : smoothstep(0.26, 0.46, p);
           if (localColorT < 0.5) {
-            cl.cMat.color.copy(whiteColor).lerp(warmCloudColor, localColorT * 2);
-            cl.cMat.emissive.setHex(0x7c2d12);
-            cl.cMat.emissiveIntensity = 0.18 + localColorT * 0.65;
+            cl.cMat.color.copy(cl.ringLayer === 0 ? solarGoldColor : warmCloudColor).lerp(warmCloudColor, localColorT * 2);
+            cl.cMat.emissive.setHex(0xb45309);
+            cl.cMat.emissiveIntensity = 0.32 + localColorT * 0.65;
           } else {
-            cl.cMat.color.copy(warmCloudColor).lerp(cl.idx % 2 === 0 ? magmaCloudColor : darkAshCloudColor, (localColorT - 0.5) * 2);
-            cl.cMat.emissive.setHex(0xdc2626);
-            cl.cMat.emissiveIntensity = 0.55;
+            cl.cMat.color.copy(warmCloudColor).lerp(cl.ringLayer === 2 ? darkAshCloudColor : magmaCloudColor, (localColorT - 0.5) * 2);
+            cl.cMat.emissive.setHex(cl.ringLayer === 0 ? 0xea580c : 0x7f1d1d);
+            cl.cMat.emissiveIntensity = 0.58;
           }
-          const pushOut = cl.isInnerWreath
-            ? cloudDisperseT * 6.8
-            : cloudDisperseT * 2.4;
-          const curR = cl.baseRad + pushOut;
-          const eyeLevelCloudDrop = smoothstep(0.48, 0.58, p);
-          const targetCloudY = cl.isInnerWreath
-            ? THREE.MathUtils.lerp(cl.baseY, 6.8 + (cl.idx % 2) * 0.6, cloudDisperseT)
-            : THREE.MathUtils.lerp(cl.baseY, 6.4 + (cl.idx % 3) * 0.55, eyeLevelCloudDrop);
-          const curY = targetCloudY;
-          cl.cGrp.position.set(
-            Math.cos(cl.baseAngle) * curR,
-            curY,
-            Math.sin(cl.baseAngle) * curR
+          // 变成熔岩球缓缓下坠时，云朵在圆周方向缓缓向外散开并缓慢旋动
+          const radialSpread = cl.ringLayer === 0
+            ? cloudDisperseT * 2.45
+            : (cl.ringLayer === 1 ? cloudDisperseT * 2.85 : cloudDisperseT * 3.20);
+          const curR = cl.baseRad + radialSpread;
+          const curAng = cl.baseAngle + p * (cl.ringLayer === 0 ? 0.55 : -0.35);
+          const horizontalViewCloudDrop = smoothstep(0.45, 0.52, p);
+          const targetCloudY = THREE.MathUtils.lerp(
+            cl.baseY - cloudDisperseT * 0.65,
+            8.2 + (cl.idx % 3) * 0.65,
+            horizontalViewCloudDrop
           );
-          cl.cMat.opacity = 0.88 * cgWeight;
+          cl.cGrp.position.set(
+            Math.cos(curAng) * curR,
+            targetCloudY,
+            Math.sin(curAng) * curR
+          );
+          cl.cGrp.rotation.y = -curAng;
+          cl.cMat.opacity = (0.92 - cloudDisperseT * 0.14) * cgWeight;
         });
 
         // =====================================================================
-        // 分阶段控制两“炮”、“将（帅）”、熔岩球、碎片雨、弹飞小石子、遮屏爆炸与全白转场
+        // 分阶段镜头与动作编排
         // =====================================================================
-        if (p < 0.12) {
-          // 阶段 1 (0.00 -> 0.12): “将（帅）”飞跃落到指定地面中心点 (0, 0.02, 0)，镜头俯视
-          const landT = smoothstep(0.0, 0.11, p);
+        if (p < 0.09) {
+          // 阶段 1 (0.00 -> 0.09): “将（帅）”飞跃落至场地中心 (0, 0.02, 0)
+          const landT = smoothstep(0.0, 0.08, p);
           if (kingItem?.mesh) {
             kingItem.customDriven = true;
             this.setPiece3DPose(
@@ -4511,6 +4988,7 @@ Object.assign(Xiangqi3DApp.prototype, {
               0.25
             );
           }
+          kingGroundHalo.visible = landT > 0.7;
           [
             { item: cannonItem0, orig: cStart0 },
             { item: cannonItem1, orig: cStart1 }
@@ -4523,11 +5001,18 @@ Object.assign(Xiangqi3DApp.prototype, {
           giantSunGroup.visible = true;
           giantSunGroup.position.copy(sunStartApex);
           giantSunGroup.scale.setScalar(1.0);
+          selfAirWaveGroup.visible = false;
           heroCenterFragment.visible = false;
+          cut1FloorBlastGroup.visible = false;
+          heroImpactPillar.visible = false;
           screenBlockerFragment.visible = false;
           screenBlockerExplosionGroup.visible = false;
-          fallingLavaRocks.forEach((r) => { r.mesh.visible = false; });
-          groundPebbles.forEach((g) => { g.peb.visible = false; });
+          fallingLavaRocks.forEach((r) => {
+            r.mesh.visible = false;
+            r.impactRing.visible = false;
+            r.impactPebbles.forEach((pb) => { pb.pebMesh.visible = false; });
+          });
+          finalFlyingBoulders.forEach((b) => { b.bMesh.visible = false; });
           if (vfxContext) vfxContext.whiteoutAlpha = 0;
 
           if (vfxContext?.setCameraOverride) {
@@ -4539,18 +5024,20 @@ Object.assign(Xiangqi3DApp.prototype, {
               true
             );
           }
-        } else if (p < 0.30) {
-          // 阶段 2 (0.12 -> 0.30): 镜头对着两“炮”螺旋升天（从俯视平滑转到仰视，对准白色太阳，太阳被白云环绕遮挡）
-          const spiralT = (p - 0.12) / 0.18;
+        } else if (p < 0.22) {
+          // 阶段 2 (0.09 -> 0.22): 两“炮”螺旋升天，镜头仰视高空白色太阳
+          // 此时白色太阳居中（绝不占满全屏！），圆周被一圈浓密云环围绕在屏幕正中间！
+          const spiralT = (p - 0.09) / 0.13;
           const easeSpiral = smoothstep(0.0, 1.0, spiralT);
-          const curCannonY = THREE.MathUtils.lerp(0.2, sunStartApex.y - 1.2, easeSpiral);
-          const spiralRadius = THREE.MathUtils.lerp(2.6, 0.35, easeSpiral);
+          const curCannonY = THREE.MathUtils.lerp(0.2, sunStartApex.y - 0.8, easeSpiral);
+          const spiralRadius = THREE.MathUtils.lerp(2.6, 0.28, easeSpiral);
           const spiralAng = spiralT * Math.PI * 5.0;
 
           if (kingItem?.mesh) {
             kingItem.customDriven = true;
             this.setPiece3DPose(kingItem.mesh, 0, 0.02, 0, 0, 0, 0, 1.55, 1.0, 0.25);
           }
+          kingGroundHalo.visible = false;
 
           [cannonItem0, cannonItem1].forEach((item, idx) => {
             if (!item?.mesh || (idx === 1 && cannonItem1 === cannonItem0)) return;
@@ -4566,7 +5053,7 @@ Object.assign(Xiangqi3DApp.prototype, {
               spiralT * Math.PI * 4,
               a,
               0,
-              THREE.MathUtils.lerp(1.25, 1.65, easeSpiral),
+              THREE.MathUtils.lerp(1.22, 1.48, easeSpiral),
               1 - smoothstep(0.85, 1.0, spiralT),
               0.85,
               0xfbbf24
@@ -4575,157 +5062,293 @@ Object.assign(Xiangqi3DApp.prototype, {
 
           giantSunGroup.visible = true;
           giantSunGroup.position.copy(sunStartApex);
-          // 仰视逼近时太阳在视野中极其巨大，几乎覆盖全屏！
-          giantSunGroup.scale.setScalar(THREE.MathUtils.lerp(1.0, 1.25, easeSpiral));
+          // 保持 scale = 1.0，使太阳在屏幕正中间占约 30% 高度，四周圆周完整展示环绕云层！
+          giantSunGroup.scale.setScalar(1.0);
+          selfAirWaveGroup.visible = false;
           heroCenterFragment.visible = false;
+          cut1FloorBlastGroup.visible = false;
+          heroImpactPillar.visible = false;
           screenBlockerFragment.visible = false;
           screenBlockerExplosionGroup.visible = false;
           if (vfxContext) vfxContext.whiteoutAlpha = 0;
 
           if (vfxContext?.setCameraOverride) {
-            // phi 从 0.58 (俯视) 平滑转至 2.15 (仰视高空太阳！此时 camY < targetY，镜头朝天仰望)
-            const camPhi = THREE.MathUtils.lerp(0.58, 2.15, easeSpiral);
-            const camTargetY = THREE.MathUtils.lerp(0.5, sunStartApex.y - 0.5, easeSpiral);
-            const camRad = THREE.MathUtils.lerp(10.8, 9.6, easeSpiral);
+            // 相机从地面附近 (camPhi = 2.68, camRad = 14.8) 仰望高空 (0, 17.5, 0) 的白色太阳与圆周云环！
+            const camPhi = THREE.MathUtils.lerp(0.58, 2.68, easeSpiral);
+            const camTargetY = THREE.MathUtils.lerp(0.5, sunStartApex.y, easeSpiral);
+            const camRad = THREE.MathUtils.lerp(10.8, 14.8, easeSpiral);
             vfxContext.setCameraOverride(
               new THREE.Vector3(0, camTargetY, 0),
               camRad,
               camPhi,
-              spiralT * 0.35,
+              spiralT * 0.25,
               true
             );
           }
-        } else if (p < 0.56) {
-          // 阶段 3 & 4 (0.30 -> 0.56):
-          // 两“炮”与白色太阳融合转化为几乎覆盖全屏的巨大熔岩球 -> 熔岩球缓慢下坠驱散白云、云朵与天空变色 ->
-          // 周围熔岩石头碎片从缓慢逐渐加速下坠 -> 一个大号碎片穿过屏幕正中心 (0.45 -> 0.55)，随之镜头从仰视随着熔岩球慢慢转向平视/俯视！
+        } else if (p < 0.472) {
+          // ===================================================================
+          // 阶段 3 & 4 (0.22 -> 0.472):
+          // 1) 中心的白色太阳变成熔岩球并缓缓下坠，同时圆周云朵在圆周缓缓向外散开 (0.22 -> 0.42)
+          // 2) 周围远近碎片开始滑落，每颗碎片落地均触发地震震屏与小石子飞溅
+          // 3) 0.39 -> 0.472: 一颗大碎片经过屏幕正中心，砸中靠近屏幕位置的地板，
+          //    掀起滔天气浪和飞石块完全遮挡住全屏幕 (p = 0.472 达到 100% 遮屏)，借此遮屏时机切换到下一个视角！
+          // ===================================================================
           [cannonItem0, cannonItem1].forEach((item) => {
             if (item?.mesh) { item.customDriven = true; item.mesh.visible = false; }
           });
           if (kingItem?.mesh) {
             kingItem.customDriven = true;
-            this.setPiece3DPose(kingItem.mesh, 0, 0.02, 0, 0, 0, 0, 1.55, 1.0, 0.45, 0xef4444);
+            this.setPiece3DPose(kingItem.mesh, 0, 0.02, 0, Math.PI * 0.24, 0, 0, 1.58, 1.0, 0.55, 0xef4444);
           }
+          kingGroundHalo.visible = false;
 
-          const slowDescendT = smoothstep(0.32, 0.56, p);
-          const curSunY = THREE.MathUtils.lerp(17.5, 12.6, slowDescendT);
+          // 熔岩球缓缓下坠 (y: 17.5 -> 14.6)，尺寸保持适中 (1.0 -> 1.16) 位于圆周云环正中心！
+          const slowDescendT = smoothstep(0.23, 0.45, p);
+          const curSunY = THREE.MathUtils.lerp(17.5, 14.6, slowDescendT);
           giantSunGroup.visible = true;
           giantSunGroup.position.set(0, curSunY, 0);
-          giantSunGroup.scale.setScalar(1.28);
+          giantSunGroup.scale.setScalar(THREE.MathUtils.lerp(1.0, 1.16, slowDescendT));
+          selfAirWaveGroup.visible = false;
+          heroImpactPillar.visible = false;
+          screenBlockerFragment.visible = false;
+          screenBlockerExplosionGroup.visible = false;
+          finalFlyingBoulders.forEach((b) => { b.bMesh.visible = false; });
+          if (vfxContext) vfxContext.whiteoutAlpha = 0;
 
-          // 周围熔岩碎片从缓慢逐渐加速下坠 (t^2.4 加速曲线)
-          fallingLavaRocks.forEach((rk) => {
-            if (p >= rk.startT && p <= rk.startT + rk.dur) {
-              const lt = (p - rk.startT) / rk.dur;
-              const accel = Math.pow(lt, 2.4); // 从缓慢漂浮逐渐猛烈加速下坠！
+          // 周围先导碎片从圆周云环间加速坠落，落地时震动镜头（地震）并激起小石子
+          fallingLavaRocks.forEach((rk, i) => {
+            if (i < 32 && p >= rk.earlyStartT && p <= rk.earlyStartT + rk.earlyDur) {
+              const lt = (p - rk.earlyStartT) / rk.earlyDur;
+              const accel = Math.pow(lt, 2.3);
               rk.mesh.visible = true;
               rk.mesh.position.set(rk.x, THREE.MathUtils.lerp(rk.startY, 0.1, accel), rk.z);
               rk.mesh.rotation.set(0, 0, 0);
               if (rk.mesh.userData?.spinBody) {
-                rk.mesh.userData.spinBody.rotation.x += dt * (4 + lt * 12);
-                rk.mesh.userData.spinBody.rotation.z += dt * (3 + lt * 10);
+                rk.mesh.userData.spinBody.rotation.x += dt * (5 + lt * 12);
+                rk.mesh.userData.spinBody.rotation.z += dt * (4 + lt * 10);
+              }
+              if (lt >= 0.88 && !rk.earlyImpacted) {
+                rk.earlyImpacted = true;
+                this.cameraShake = Math.max(this.cameraShake || 0, 0.22 + rk.depthScale * 0.18);
               }
             } else {
               rk.mesh.visible = false;
             }
+            rk.impactRing.visible = false;
+            rk.impactPebbles.forEach((pb) => { pb.pebMesh.visible = false; });
           });
 
-          // 0.44 -> 0.55: 一颗硕大的熔岩碎片穿过屏幕正中心（从缓慢逐渐加速掠过镜头正中央！）
-          const heroFragT = (p - 0.43) / 0.12;
-          if (heroFragT >= 0 && heroFragT <= 1) {
-            const accelHero = Math.pow(heroFragT, 2.2);
+          // 相机在 0.39 -> 0.455 跟随中心大碎片略微下移视线对准靠近屏幕前方的地板
+          const followHeroT = smoothstep(0.39, 0.455, p);
+          const camPhi = THREE.MathUtils.lerp(2.68, 1.86, followHeroT);
+          const camTargetY = THREE.MathUtils.lerp(curSunY, 2.6, followHeroT);
+          const camRad = THREE.MathUtils.lerp(14.8, 12.6, followHeroT);
+          const camThetaOff = 0.25 * (1 - followHeroT);
+
+          // 0.385 -> 0.452: 大碎片经过屏幕正中心，极速砸向靠近屏幕位置的地板！
+          const heroFragT = (p - 0.385) / 0.067;
+          if (heroFragT >= 0 && heroFragT <= 1.0) {
+            const accelHero = Math.pow(heroFragT, 2.1);
             heroCenterFragment.visible = true;
-            // 位于镜头与目标连线正中央，使这颗大碎片直穿屏幕正中心！
-            const fragY = THREE.MathUtils.lerp(curSunY - 1.2, 2.5, accelHero);
-            const fragZ = THREE.MathUtils.lerp(2.2, 5.2, Math.sin(heroFragT * Math.PI));
+            // 从熔岩球正下方经过屏幕正中心，砸向靠近相机前方的地板 (0, 0.3, 6.2)
+            const fragY = THREE.MathUtils.lerp(curSunY - 0.6, 0.35, accelHero);
+            const fragZ = THREE.MathUtils.lerp(0.8, 6.2, accelHero);
             heroCenterFragment.position.set(0, fragY, fragZ);
             heroCenterFragment.rotation.set(0, 0, 0);
             if (heroCenterFragment.userData?.spinBody) {
-              heroCenterFragment.userData.spinBody.rotation.x += dt * 9;
-              heroCenterFragment.userData.spinBody.rotation.y += dt * 7;
+              heroCenterFragment.userData.spinBody.rotation.x += dt * 12;
+              heroCenterFragment.userData.spinBody.rotation.y += dt * 9;
             }
-            heroCenterFragment.scale.setScalar(1.15 + Math.sin(heroFragT * Math.PI) * 0.55);
+            heroCenterFragment.scale.setScalar(1.15 + accelHero * 1.15);
           } else {
             heroCenterFragment.visible = false;
           }
-          screenBlockerFragment.visible = false;
-          screenBlockerExplosionGroup.visible = false;
-          groundPebbles.forEach((g) => { g.peb.visible = false; });
-          if (vfxContext) vfxContext.whiteoutAlpha = 0;
 
-          // 运镜：0.30 -> 0.45 保持仰视对准几乎铺满全屏的熔岩球；0.45 -> 0.56 随着中心大碎片穿屏下坠，视角从仰视平滑转向与地面平行！
+          // 0.444 -> 0.472: 大碎片砸中靠近屏幕位置的地板，掀起滔天气浪和飞石块遮挡住全屏幕！
+          if (p >= 0.444) {
+            const occT = (p - 0.444) / 0.028; // 在 p = 0.472 达到 1.0 (100% 遮挡全屏幕)
+            if (!cut1ImpactTriggered) {
+              cut1ImpactTriggered = true;
+              this.cameraShake = 0.85;
+            } else {
+              this.cameraShake = Math.max(this.cameraShake || 0, 0.55);
+            }
+            cut1FloorBlastGroup.visible = true;
+            // 放置在靠近镜头前方的地板与视线正中央，气浪与飞石瞬间扑面遮满全屏
+            cut1FloorBlastGroup.position.set(0, THREE.MathUtils.lerp(1.2, 2.6, occT), THREE.MathUtils.lerp(6.8, 9.6, occT));
+            cut1FloorBlastGroup.scale.setScalar(0.95 + occT * 3.85);
+            cut1WaveCoreMat.opacity = Math.min(1.0, occT * 1.45);
+            cut1WaveOuterMat.opacity = Math.min(1.0, occT * 1.55);
+            cut1FlyingRocks.forEach(({ rkMesh, a, rad, vy }, idx) => {
+              const spread = rad * (0.35 + occT * 2.25);
+              rkMesh.position.set(
+                Math.cos(a) * spread,
+                Math.sin(a) * spread * 0.65 + (occT - 0.3) * vy,
+                1.35
+              );
+              rkMesh.rotation.x += dt * (12 + idx);
+              rkMesh.rotation.y += dt * 14;
+            });
+          } else {
+            cut1FloorBlastGroup.visible = false;
+          }
+
           if (vfxContext?.setCameraOverride) {
-            const tiltFollowT = smoothstep(0.45, 0.56, p);
-            const camPhi = THREE.MathUtils.lerp(2.15, Math.PI * 0.495, tiltFollowT);
-            const camTargetY = THREE.MathUtils.lerp(curSunY - 0.4, 3.2, tiltFollowT);
-            const camRad = THREE.MathUtils.lerp(9.6, 15.2, tiltFollowT);
             vfxContext.setCameraOverride(
               new THREE.Vector3(0, camTargetY, 0),
               camRad,
               camPhi,
-              0.35 * (1 - tiltFollowT),
+              camThetaOff,
               true
             );
           }
-        } else if (p < 0.76) {
-          // 阶段 5 (0.56 -> 0.76):
-          // 大碎片穿过屏幕中心后，视线与地面平行 (phi = Math.PI * 0.495 ≈ 1.555)，
-          // 同时清晰看到：上方是已经完全变红的云层下露出一部分的巨大熔岩球逼近半空，下方是地面上的“将（帅）”！
-          // 越来越多的碎片砸向地面并掀起小石子，直到 p=0.72->0.76 一个碎片从空中砸在镜头前爆炸覆盖并遮挡一瞬间整个屏幕！
+        } else if (p < 0.74) {
+          // ===================================================================
+          // 阶段 5 (0.472 -> 0.74):
+          // 趁大碎片砸中近处地板掀起气浪和石块完全遮住全屏的时机 (p = 0.472)，瞬间切换到水平远景视角！
+          // - 0.472 -> 0.505: 遮屏气浪与飞石散开，露出水平战场视角
+          // - 64 颗远小近大的熔岩碎片密集砸落，每颗碎片落地均激起 6 颗弹跳小石子，并触发镜头地震震动！
+          // - 0.695 -> 0.74: 第二颗近景大碎片砸在镜头前掀起遮屏爆炸，切入终局熔岩球压顶特写！
+          // ===================================================================
           heroCenterFragment.visible = false;
-          const midAirApproachT = (p - 0.56) / 0.20;
-          // 熔岩球球心位于 y = 11.6 -> 9.4（半径 5.85，因此在 y = 9.2 的变色红云层下方露出球体下半部，正逼近半空！）
-          const curSunY = THREE.MathUtils.lerp(10.6, 8.5, midAirApproachT);
+          finalFlyingBoulders.forEach((b) => { b.bMesh.visible = false; });
+
+          // 0.472 -> 0.506: 遮挡全屏的气浪与石块迅速向镜头四周飞散消退，完成无缝转场！
+          if (p < 0.506) {
+            const clearT = (p - 0.472) / 0.034;
+            cut1FloorBlastGroup.visible = true;
+            cut1FloorBlastGroup.position.set(0, 3.05, 11.8);
+            cut1FloorBlastGroup.scale.setScalar(4.8 + clearT * 2.2);
+            cut1WaveCoreMat.opacity = (1 - clearT) * 0.96;
+            cut1WaveOuterMat.opacity = (1 - clearT) * 0.92;
+            cut1FlyingRocks.forEach(({ rkMesh, a, rad, vy }, idx) => {
+              const spread = rad * (2.6 + clearT * 2.4);
+              rkMesh.position.set(
+                Math.cos(a) * spread,
+                Math.sin(a) * spread * 0.75 + clearT * vy * 1.5,
+                1.4
+              );
+              rkMesh.rotation.x += dt * (12 + idx);
+            });
+          } else {
+            cut1FloorBlastGroup.visible = false;
+          }
+
+          const midAirApproachT = (p - 0.472) / 0.268;
+          // 熔岩球在红云层下方露出球体下半部，缓缓下压逼近半空（还原《白.mp4》08.5s-15.0s）
+          const curSunY = THREE.MathUtils.lerp(11.6, 8.8, midAirApproachT);
           giantSunGroup.visible = true;
           giantSunGroup.position.set(0, curSunY, 0);
-          giantSunGroup.scale.setScalar(1.22);
+          giantSunGroup.scale.setScalar(2.65);
+          selfAirWaveGroup.visible = false;
+
+          // 0.472 -> 0.555 场地中心大碎片落点冲天火柱（还原《白.mp4》08.5s-10.5s 中心火柱）
+          if (p >= 0.472 && p < 0.56) {
+            const pilT = (p - 0.472) / 0.088;
+            heroImpactPillar.visible = true;
+            const pilFade = Math.sin(pilT * Math.PI);
+            heroImpactPillar.scale.set(0.85 + pilT * 0.95, pilFade, 0.85 + pilT * 0.95);
+            heroPillarBaseWave.scale.setScalar(1.0 + pilT * 2.8);
+          } else {
+            heroImpactPillar.visible = false;
+          }
 
           if (kingItem?.mesh) {
             kingItem.customDriven = true;
-            const tremble = Math.sin(p * 110) * 0.08 * midAirApproachT;
-            this.setPiece3DPose(kingItem.mesh, tremble, 0.02, -tremble, 0.12, 0, 0, 1.62, 1.0, 0.75, 0xef4444);
+            const tremble = Math.sin(p * 125) * 0.08 * midAirApproachT;
+            this.setPiece3DPose(
+              kingItem.mesh,
+              tremble,
+              0.02,
+              -tremble,
+              Math.PI * 0.26,
+              0,
+              0,
+              1.65,
+              1.0,
+              0.82,
+              0xef4444
+            );
           }
+          kingGroundHalo.visible = true;
+          kingGroundHalo.scale.setScalar(0.95 + Math.sin(p * 45) * 0.15);
 
-          // 越来越多的碎片加速砸向地面
+          // 64 颗远小近大的熔岩碎片密集坠落，每颗落地均激起小石子并触发地震镜头震动！
+          const activeRockLimit = Math.floor(THREE.MathUtils.lerp(28, fallingLavaRocks.length, Math.min(1, midAirApproachT * 1.25)));
+          let frameImpactShock = 0;
           fallingLavaRocks.forEach((rk, i) => {
-            const cycle = ((p - 0.54) * (2.6 + (i % 3) * 0.5) + i * 0.17) % 1.0;
-            if (cycle >= 0 && cycle < 0.92) {
-              const accel = cycle * cycle;
+            if (i >= activeRockLimit) {
+              rk.mesh.visible = false;
+              rk.impactRing.visible = false;
+              rk.impactPebbles.forEach((pb) => { pb.pebMesh.visible = false; });
+              return;
+            }
+            const speedMult = 2.6 + (i % 4) * 0.48;
+            const cycle = ((p - 0.465) * speedMult + i * 0.137) % 1.0;
+            const impactThreshold = 0.72;
+
+            if (cycle >= 0 && cycle < impactThreshold) {
+              // 空中加速坠落阶段 (0 -> 0.72)
+              const fallP = cycle / impactThreshold;
+              const accel = fallP * fallP;
               rk.mesh.visible = true;
-              rk.mesh.position.set(rk.x, THREE.MathUtils.lerp(11.5, 0.05, accel), rk.z);
+              rk.mesh.position.set(rk.x, THREE.MathUtils.lerp(rk.startY, 0.05, accel), rk.z);
               rk.mesh.rotation.set(0, 0, 0);
               if (rk.mesh.userData?.spinBody) {
                 rk.mesh.userData.spinBody.rotation.x += dt * 12;
                 rk.mesh.userData.spinBody.rotation.z += dt * 10;
               }
-              if (cycle > 0.84) {
-                this.cameraShake = Math.max(this.cameraShake || 0, 0.22);
-              }
+              rk.impactRing.visible = false;
+              rk.impactPebbles.forEach((pb) => { pb.pebMesh.visible = false; });
             } else {
+              // 落地爆炸 + 激起小石子 + 触发地震镜头震动阶段 (0.72 -> 1.00)
               rk.mesh.visible = false;
+              const postImpactP = (cycle - impactThreshold) / (1.0 - impactThreshold);
+
+              // 每个碎片落地瞬间触发屏幕（镜头）地震震动！
+              if (rk.prevCycle < impactThreshold && rk.prevCycle >= 0) {
+                const quakeStrength = 0.24 + rk.depthScale * 0.24;
+                frameImpactShock = Math.max(frameImpactShock, quakeStrength);
+                if (p - lastRumbleP > 0.045) {
+                  lastRumbleP = p;
+                  this.sfx?.playVFXPieceStepThud?.(0.55 + Math.min(0.4, rk.depthScale * 0.2), 0.72 + (i % 4) * 0.12);
+                }
+              }
+
+              // 地面冲击波光环
+              rk.impactRing.visible = true;
+              rk.impactRing.position.set(rk.x, 0.04, rk.z);
+              rk.impactRing.scale.setScalar(0.5 + postImpactP * 2.4);
+              rk.impactRing.material.opacity = (1 - postImpactP) * 0.80 * fade;
+
+              // 碎片落地激起的 6 颗四溅弹跳小石子
+              rk.impactPebbles.forEach((pb, pIdx) => {
+                pb.pebMesh.visible = true;
+                const bounceH = Math.abs(Math.sin(postImpactP * Math.PI * 1.35)) * pb.jumpH * (1 - postImpactP * 0.35);
+                pb.pebMesh.position.set(
+                  rk.x + pb.vx * postImpactP * 1.35,
+                  0.03 + bounceH,
+                  rk.z + pb.vz * postImpactP * 1.35
+                );
+                pb.pebMesh.rotation.x += dt * (15 + pIdx * 2);
+                pb.pebMesh.rotation.z += dt * (12 + pIdx * 2);
+                const pebSc = Math.max(0.1, 1 - postImpactP * 0.45);
+                pb.pebMesh.scale.setScalar(pebSc);
+              });
             }
+            rk.prevCycle = cycle;
           });
 
-          // 碎片砸到地面时掀起四溅弹跳的小石子
-          groundPebbles.forEach((gp) => {
-            if (p >= gp.trigT) {
-              const pt = ((p - gp.trigT) * 4.2) % 1.0;
-              gp.peb.visible = true;
-              gp.peb.position.set(
-                gp.baseX + gp.vx * pt * 0.85,
-                0.04 + Math.abs(Math.sin(pt * Math.PI)) * gp.jumpH * 0.75,
-                gp.baseZ + gp.vz * pt * 0.85
-              );
-              gp.peb.rotation.x += dt * 14;
-              gp.peb.rotation.y += dt * 11;
-            } else {
-              gp.peb.visible = false;
-            }
-          });
+          if (frameImpactShock > 0) {
+            this.cameraShake = Math.max(this.cameraShake || 0, frameImpactShock);
+          } else {
+            // 持续余震微颤，强化陨石雨轰击大地的地震感
+            this.cameraShake = Math.max(this.cameraShake || 0, 0.14);
+          }
 
-          // 0.70 -> 0.76: 一颗大碎片从空中极速砸向镜头正前方，并在 p=0.73->0.76 产生覆盖并遮挡整个屏幕的爆炸！
-          if (p >= 0.70 && p < 0.735) {
-            const bfT = (p - 0.70) / 0.035;
+          // 0.69 -> 0.74: 第二颗近景大碎片砸在镜头正前方，掀起遮蔽全屏的爆炸与黑岩剪影，完成第二次遮屏切镜！
+          if (p >= 0.69 && p < 0.722) {
+            const bfT = (p - 0.69) / 0.032;
             screenBlockerFragment.visible = true;
             screenBlockerFragment.position.set(
               0,
@@ -4737,46 +5360,70 @@ Object.assign(Xiangqi3DApp.prototype, {
               screenBlockerFragment.userData.spinBody.rotation.x += dt * 18;
               screenBlockerFragment.userData.spinBody.rotation.z += dt * 12;
             }
-            screenBlockerFragment.scale.setScalar(1.2 + bfT * 0.8);
+            screenBlockerFragment.scale.setScalar(1.25 + bfT * 0.90);
           } else {
             screenBlockerFragment.visible = false;
           }
 
-          if (p >= 0.728) {
-            const covP = (p - 0.728) / 0.032; // 0 -> 1 在 p=0.76 达到 100% 遮蔽全屏
+          if (p >= 0.715) {
+            const covP = (p - 0.715) / 0.025; // 在 p=0.74 达到 100% 遮蔽全屏
+            if (!cut2ImpactTriggered) {
+              cut2ImpactTriggered = true;
+              this.cameraShake = 0.88;
+            } else {
+              this.cameraShake = Math.max(this.cameraShake || 0, 0.58);
+            }
             screenBlockerExplosionGroup.visible = true;
             screenBlockerExplosionGroup.position.set(0, 2.8, 12.2);
-            screenBlockerExplosionGroup.scale.setScalar(1.0 + covP * 3.8);
-            blockerFlashCore.material.opacity = Math.min(1, covP * 1.35);
-            blockerFireShell.material.opacity = Math.min(1, covP * 1.45);
-            this.cameraShake = 0.45;
+            screenBlockerExplosionGroup.scale.setScalar(1.0 + covP * 3.9);
+            blockerFlashCore.material.opacity = Math.min(1, covP * 1.42);
+            blockerFireShell.material.opacity = Math.min(1, covP * 1.52);
+            blockerSilhouetteRocks.forEach(({ sr, a, r }, idx) => {
+              const d = r * (0.4 + covP * 1.85);
+              sr.position.set(Math.cos(a) * d, Math.sin(a) * d * 0.65, 1.2);
+              sr.rotation.x += dt * (10 + idx);
+              sr.rotation.y += dt * 12;
+            });
           } else {
             screenBlockerExplosionGroup.visible = false;
           }
           if (vfxContext) vfxContext.whiteoutAlpha = 0;
 
           if (vfxContext?.setCameraOverride) {
-            // 视线与地面完全平行 (phi = Math.PI * 0.495)，同时囊括上方云层下露出的熔岩球与下方地面上的“将（帅）”！
+            // 附加陨石落地引发的地震镜头微抖动偏移
+            const quakeJoltX = Math.sin(p * 390) * (this.cameraShake || 0) * 0.22;
+            const quakeJoltY = Math.cos(p * 350) * (this.cameraShake || 0) * 0.26;
             vfxContext.setCameraOverride(
-              new THREE.Vector3(0, 3.05, 0),
+              new THREE.Vector3(quakeJoltX, 3.05 + quakeJoltY, 0),
               15.4,
               Math.PI * 0.495,
               0,
-              true
+              true,
+              p < 0.495
             );
           }
         } else {
-          // 阶段 6 (0.76 -> 1.00):
-          // 遮屏爆炸散去的下一个瞬间画面 (instant cut)：
-          // 巨大熔岩球已经逼近地面上方，正在缓慢下落快要接触地面（地上是“将（帅）”），
-          // 四周小石子剧烈弹飞升空，整个屏幕随着小石子弹飞渐变成全白，然后无缝衔接回终局棋盘！
+          // ===================================================================
+          // 阶段 6 (0.74 -> 1.00): 还原《白.mp4》20.0s-30.0s 终局压顶与纯白湮灭：
+          // 1) 遮屏爆炸散开，巨大熔岩球近在咫尺压向地面上的“将（帅）”
+          // 2) 气浪从熔岩球自身变亮向外奔涌扩散 (selfAirWaveGroup & 熔岩球本体自发光升至炽白)
+          // 3) 熔岩球落地 (p = 0.80) 激起剧烈地震 (持续高强度 cameraShake + 地面震波)
+          // 4) 56 块黑曜石块与碎岩冲天飞起 (finalFlyingBoulders)
+          // 5) 整个屏幕随着熔岩球自身气浪变亮与石块飞起，慢慢渐变到全白 (0.82 -> 1.00 单调递增至 1.0 纯白)！
+          // ===================================================================
           heroCenterFragment.visible = false;
+          cut1FloorBlastGroup.visible = false;
+          heroImpactPillar.visible = false;
           screenBlockerFragment.visible = false;
-          fallingLavaRocks.forEach((r) => { r.mesh.visible = false; });
+          fallingLavaRocks.forEach((r) => {
+            r.mesh.visible = false;
+            r.impactRing.visible = false;
+            r.impactPebbles.forEach((pb) => { pb.pebMesh.visible = false; });
+          });
 
-          // 0.76 -> 0.80 遮屏爆炸火光迅速散开，露出已经近在咫尺的巨大熔岩球！
-          if (p < 0.80) {
-            const clearT = (p - 0.76) / 0.04;
+          // 0.74 -> 0.78 遮屏爆炸火光迅速散开，露出近在咫尺的巨大熔岩球
+          if (p < 0.78) {
+            const clearT = (p - 0.74) / 0.04;
             screenBlockerExplosionGroup.visible = true;
             screenBlockerExplosionGroup.position.set(0, 1.2, 6.5);
             screenBlockerExplosionGroup.scale.setScalar(4.8 + clearT * 2.0);
@@ -4786,100 +5433,108 @@ Object.assign(Xiangqi3DApp.prototype, {
             screenBlockerExplosionGroup.visible = false;
           }
 
-          // 熔岩球半径为 5.85 * 1.15 ≈ 6.72；球心从 y = 7.65 缓慢下降至 y = 6.75（球体底端从 y = 0.93 缓慢下落至 y = 0.03 几乎接触地面“将（帅）”！）
-          const closeDropT = smoothstep(0.76, 0.92, p);
-          const endFadeOut = 1 - smoothstep(0.92, 0.98, p);
-          const sphereCenterY = THREE.MathUtils.lerp(7.65, 6.76, closeDropT);
-          giantSunGroup.visible = endFadeOut > 0.02;
+          // 熔岩球放大至 3.95 倍（半径 1.78 * 3.95 ≈ 7.03），从 y = 8.35 缓缓下压，在 p = 0.80 落地触碰地面并继续压入大地！
+          const descendToTouchT = smoothstep(0.74, 0.81, p);
+          const crushIntoGroundT = smoothstep(0.81, 1.00, p);
+          const sphereCenterY = THREE.MathUtils.lerp(8.35, 6.95, descendToTouchT) - crushIntoGroundT * 0.65;
+          giantSunGroup.visible = true;
           giantSunGroup.position.set(0, sphereCenterY, 0);
-          giantSunGroup.scale.setScalar(1.15);
+          giantSunGroup.scale.setScalar(3.95);
 
-          // 地上是“将（帅）”，在熔岩球泰山压顶下剧烈震颤，并在全白转场后恢复至终局原位
+          // 气浪从熔岩球自身变亮 (selfBrightenT: 0.74 -> 0.98)
+          const selfBrightenT = smoothstep(0.74, 0.98, p);
+          lavaSphereCoreMat.color.copy(warmCloudColor).lerp(whiteColor, Math.pow(selfBrightenT, 0.75));
+          lavaCrustWireMat.color.copy(solarGoldColor).lerp(whiteColor, selfBrightenT);
+          lavaCrustWireMat.opacity = (0.85 + selfBrightenT * 0.15) * fade;
+          lavaCoronaMat.color.copy(warmCloudColor).lerp(whiteColor, selfBrightenT);
+          lavaCoronaMat.opacity = (0.78 + selfBrightenT * 0.22) * fade;
+
+          selfAirWaveGroup.visible = true;
+          selfAirWaveGroup.rotation.y += dt * (1.4 + selfBrightenT * 2.5);
+          // 熔岩球自身发出的三层球面气浪与环状烈焰裙边由内向外节节变亮并膨胀
+          const waveExpand = 1.0 + selfBrightenT * 0.62 + crushIntoGroundT * 0.45;
+          selfWaveShell1.scale.setScalar(1.0 + selfBrightenT * 0.35);
+          selfWaveShell2.scale.setScalar(waveExpand);
+          selfWaveShell3.scale.setScalar(1.0 + selfBrightenT * 0.85 + crushIntoGroundT * 0.65);
+          selfWaveInnerMat.opacity = Math.min(1.0, (0.28 + selfBrightenT * 0.72) * fade);
+          selfWaveMidMat.opacity = Math.min(1.0, (0.35 + selfBrightenT * 0.65) * fade);
+          selfWaveOuterMat.opacity = Math.min(1.0, (0.42 + selfBrightenT * 0.58) * fade);
+          selfWaveMidMat.color.copy(solarGoldColor).lerp(whiteColor, smoothstep(0.35, 1.0, selfBrightenT));
+          selfWaveOuterMat.color.copy(warmCloudColor).lerp(whiteColor, smoothstep(0.55, 1.0, selfBrightenT));
+
+          selfWaveSkirtRing1.scale.setScalar(0.95 + selfBrightenT * 0.55);
+          selfWaveSkirtRing2.scale.setScalar(0.92 + selfBrightenT * 0.75);
+
+          // 熔岩球落地激起剧烈地震 (p >= 0.795)
+          const quakeT = smoothstep(0.79, 0.98, p);
+          if (p >= 0.79) {
+            this.cameraShake = Math.max(this.cameraShake || 0, 0.52 + quakeT * 0.88);
+          } else {
+            this.cameraShake = Math.max(this.cameraShake || 0, 0.24);
+          }
+
+          // 地上“将（帅）”在熔岩球落地地震中剧烈震颤
           if (kingItem?.mesh) {
             kingItem.customDriven = true;
-            if (p < 0.92) {
-              const jitter = Math.sin(p * 150) * 0.11;
-              const squash = 1 + closeDropT * 0.25;
-              this.setPiece3DPose(
-                kingItem.mesh,
-                jitter,
-                0.02,
-                -jitter,
-                0.15,
-                0,
-                0,
-                [1.62 * squash, 1.62 / squash, 1.62 * squash],
-                1.0,
-                0.95,
-                0xef4444
-              );
-            } else {
-              const backT = smoothstep(0.92, 0.99, p);
-              this.setPiece3DPose(
-                kingItem.mesh,
-                THREE.MathUtils.lerp(0, kPos.x, backT),
-                0,
-                THREE.MathUtils.lerp(0, kPos.z, backT),
-                0,
-                0,
-                0,
-                THREE.MathUtils.lerp(1.4, 1.0, backT),
-                1.0,
-                0
-              );
-            }
+            const jitter = Math.sin(p * 175) * (0.08 + quakeT * 0.10);
+            const squash = 1 + crushIntoGroundT * 0.28;
+            this.setPiece3DPose(
+              kingItem.mesh,
+              jitter,
+              0.02,
+              -jitter,
+              Math.PI * 0.22,
+              0,
+              0,
+              [1.65 * squash, 1.65 / squash, 1.65 * squash],
+              1.0,
+              0.95,
+              0xef4444
+            );
+            kingGroundHalo.visible = true;
+            kingGroundHalo.scale.setScalar(1.1 + crushIntoGroundT * 0.85);
           }
 
-          // 两“炮”在全白转场消退时归位
-          if (p >= 0.91) {
-            const backC = smoothstep(0.91, 0.99, p);
-            [
-              { item: cannonItem0, orig: cStart0 },
-              { item: cannonItem1, orig: cStart1 }
-            ].forEach(({ item, orig }, idx) => {
-              if (!item?.mesh || (idx === 1 && cannonItem1 === cannonItem0)) return;
-              item.customDriven = true;
-              this.setPiece3DPose(item.mesh, orig.x, 0, orig.z, 0, 0, 0, 1.0, backC, 0);
-            });
-          }
-
-          // 地面小石子受熔岩球压迫冲击波向上劇烈弹飞！
-          const pebbleFlyT = smoothstep(0.76, 0.94, p);
-          groundPebbles.forEach((gp) => {
-            if (p < 0.95) {
-              gp.peb.visible = true;
-              const lift = Math.sin(pebbleFlyT * Math.PI * 0.85) * gp.jumpH * 2.15;
-              gp.peb.position.set(
-                gp.baseX + gp.vx * pebbleFlyT * 2.2,
-                0.05 + lift,
-                gp.baseZ + gp.vz * pebbleFlyT * 2.2
+          // 熔岩球落地激起地震，四周 56 块石块冲天飞起 (还原《白.mp4》23s-29.5s 满屏飞石腾空！)
+          finalFlyingBoulders.forEach((fb) => {
+            const localRockT = Math.max(0, (p - (0.785 + fb.delay)) / Math.max(0.05, 0.215 - fb.delay));
+            if (localRockT > 0) {
+              fb.bMesh.visible = true;
+              const liftY = Math.pow(localRockT, 0.82) * fb.upSpeed;
+              fb.bMesh.position.set(
+                fb.baseX + fb.vx * localRockT * 1.85,
+                0.04 + liftY,
+                fb.baseZ + fb.vz * localRockT * 1.85
               );
-              gp.peb.rotation.x += dt * 18;
-              gp.peb.rotation.z += dt * 15;
-              gp.peb.scale.setScalar(endFadeOut * fade);
+              fb.bMesh.rotation.x += dt * (10 + (fb.idx % 7));
+              fb.bMesh.rotation.y += dt * (8 + (fb.idx % 5));
+              fb.bMesh.rotation.z += dt * (9 + (fb.idx % 6));
+              fb.bMesh.scale.set(
+                1.35 * (1 + localRockT * 0.35),
+                (0.78 + (fb.idx % 3) * 0.25) * (1 + localRockT * 0.35),
+                1.15 * (1 + localRockT * 0.35)
+              );
             } else {
-              gp.peb.visible = false;
+              fb.bMesh.visible = false;
             }
           });
 
-          // 整个屏幕随着小石子弹飞渐变成全白 (0.80 -> 0.92 渐变为 1.0 全白，0.92 -> 0.99 从全白平滑褪去衔接回终局棋盘！)
+          // 整个屏幕随着气浪从熔岩球自身变亮与石块飞起，慢慢渐变到全白 (0.82 -> 1.00 平滑单调递增至 1.0 纯白！)
           if (vfxContext) {
-            if (p < 0.92) {
-              vfxContext.whiteoutAlpha = smoothstep(0.79, 0.91, p);
-            } else {
-              vfxContext.whiteoutAlpha = 1 - smoothstep(0.92, 0.99, p);
-            }
+            const whiteRamp = smoothstep(0.82, 0.995, p);
+            vfxContext.whiteoutAlpha = Math.pow(whiteRamp, 1.35);
           }
 
-          if (vfxContext?.setCameraOverride && p < 0.93) {
-            // 在 p=0.76 瞬间切换 (instant = p < 0.78) 到近景平低机位，直视熔岩球底端逼近地面上的“将（帅）”！
+          if (vfxContext?.setCameraOverride) {
+            const qx = Math.sin(p * 420) * (0.06 + quakeT * 0.22);
+            const qy = Math.cos(p * 380) * (0.06 + quakeT * 0.26);
             vfxContext.setCameraOverride(
-              new THREE.Vector3(0, 1.15, 0),
+              new THREE.Vector3(qx, 1.15 + qy, 0),
               9.6,
-              1.36,
+              1.38,
               0,
               true,
-              p < 0.785
+              p < 0.765
             );
           }
         }

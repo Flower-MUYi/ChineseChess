@@ -463,12 +463,17 @@ class Xiangqi3DApp {
     const h = Math.max(320, window.innerHeight || 768);
     const aspect = w / h;
     this.camera.aspect = aspect;
-    const portraitScale = aspect < 0.85 ? THREE.MathUtils.clamp(0.85 / aspect, 1.0, 1.68) : 1.0;
-    this.camera.fov = aspect < 0.85 ? 46 : 42;
+    const isPortraitMobile = aspect < 0.85;
+    const portraitScale = isPortraitMobile ? THREE.MathUtils.clamp(0.86 / aspect, 1.0, 1.76) : 1.0;
+    this.camera.fov = aspect < 0.56 ? 48 : (isPortraitMobile ? 46 : 42);
     this.camera.updateProjectionMatrix();
 
+    if (!(this.vfxAtmosphereTimer > 0) && this.camTarget) {
+      this.camTarget.z = isPortraitMobile ? -0.18 : 0.3;
+    }
+
     const baseRadius = this.basePresetRadius || 17.5;
-    this.desiredSpherical.radius = THREE.MathUtils.clamp(baseRadius * portraitScale, 9.5, 32.0);
+    this.desiredSpherical.radius = THREE.MathUtils.clamp(baseRadius * portraitScale, 9.5, 34.0);
     if (!animate) {
       this.camSpherical.radius = this.desiredSpherical.radius;
     }

@@ -6,10 +6,6 @@
   z-index: 28;
 }
 /* 动画与绝杀视觉特效样式 (Animations & VFX Keyframes) */
-  background: linear-gradient(135deg, #7f1d1d 0%, #b91c1c 55%, #d97706 100%) !important;
-  color: #fffbeb !important;
-  box-shadow: 0 3px 12px rgba(185, 28, 28, 0.38);
-}
 
 @keyframes checkPulse {
   0%, 100% {
